@@ -5,14 +5,16 @@ trait=$1
 
 module load R/4.0.2
 module load bedtools/2.27.1
+module load ucsctools/20160223
 baseDir=/working/lab_jonathb/alexandT/ ; 
 WKDIR=$baseDir/tgp_paper/compare_methods/ ; cd $WKDIR
 celltypes=enriched_tissues # (enriched_tissues BRST.MCF7.CNCR_celltype all_celltypes)
 
 echo $trait $celltypes
 outDir=output/$trait/$celltypes/ ; mkdir -p $outDir
-TraitVarsBed=$baseDir/tgp_paper/wrangle_package_data/output/Traits/$trait/VariantList.bed
+TraitVarsBed=$baseDir/tgp_paper/wrangle_package_data/output/traits/$trait/VariantList.bed
 
+# header
 echo -e "cs\tsymbol\tscore\tmethod" | gzip > $outDir/predictions_long.tsv.gz
 
 # tgp predictions #
@@ -21,6 +23,11 @@ sed 1d |
 cut -f1,7,8 |
 awk '{print $0"\ttgp"}' |
 gzip >> $outDir/predictions_long.tsv.gz
+
+# cS2G predictions #
+(if [ "$trait" == "BC" ] && [ "$celltypes" = "enriched_tissues" ] ; then 
+  
+fi)
 
 # ABC predictions #
 (if [ "$celltypes" = "BRST.MCF7.CNCR_celltype" ] ; then
@@ -72,16 +79,16 @@ if [ "$trait" == "PrCa_Giambartolomei2021" ] || [ "$trait" == "BC" ] ; then
     # run: # code/get_EpiMAP.sh $trait
     
     cat data/EpiMAP/GWAS_enrichments/$trait/corrlinks_inloci.tsv | 
-    awk -F'\t' 'NR > 1 && $6 != "NA" {print $1"\t"$2-1"\t"$2"\t"$0}' |  
-    bedtools intersect -a - -b $baseDir/tgp_paper/wrangle_package_data/output/Traits/$trait/CredibleSetList.bed -wa -wb | 
-    awk -F'\t' '{print $19"\t"$9"\t"$10"\tEpiMAP"}' |
+    awk -F'\t' -vOFS='\t' 'NR > 1 && $6 != "NA" {print $1,$2-1,$2,$0}' |  
+    bedtools intersect -a - -b $baseDir/tgp_paper/wrangle_package_data/output/traits/$trait/CredibleSetList.bed -wa -wb | 
+    awk -F'\t' -vOFS='\t' '{print $19,$9,$10,"EpiMAP"}' |
     gzip >> $outDir/predictions_long.tsv.gz
   elif [ "$celltypes" = "all_celltypes" ] ; then 
     echo -e "cs\tensg\tscore" | gzip > $outDir/EpiMAP/intersected_predictions.tsv.gz
     ls data/EpiMAP/predictions/*_collated_pred.tsv.gz |
     xargs zcat |
     bedtools intersect -a - -b $TraitVarsBed -wa -wb |
-    awk '{print $11"\t"$4"\t"$5}' |
+    awk -F'\t' -vOFS='\t' '{print $11,$4,$5}' |
     gzip >> $outDir/EpiMAP/intersected_predictions.tsv.gz
     # convert to symbols
     Rscript code/ensg_to_symbol.R $outDir/EpiMAP/intersected_predictions.tsv.gz FALSE
@@ -94,7 +101,6 @@ if [ "$trait" == "PrCa_Giambartolomei2021" ] || [ "$trait" == "BC" ] ; then
 fi
 
 # compare methods
-# (for TRAIT in IBD BC PrCa_Giambartolomei2021 PrCa_Dadaev2018 ; do echo $trait
 Rscript code/compare_methods_2.R $trait $celltypes
 
 # unite performance tables

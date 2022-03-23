@@ -6,19 +6,22 @@
 # reformat HiChIP_interactions.txt.gz: FitHiChIP interaction files (with header)
 # -> (chr1 s1 e1 chr2 s2 e2 cc Coverage1 isPeak1 Bias1 Mapp1 GCContent1 RESites1 Coverage2 isPeak2 Bias2 Mapp2 GCContent2
 #     RESites2 p exp_cc_Bias p_Bias dbinom_Bias P-Value_Bias Q-Value_Bias)
-# -> Score = Q-Value_Bias
+# -> Score = -log10(Q-Value_Bias)
 
 module load R/4.0.2
-WKDIR=/working/lab_jonathb/alexandT/tgp_paper/wrange_package_data/ ; cd $WKDIR
-dataDir=${WKDIR}/data/contact/ ; mkdir $dataDir
-outputDir=${WKDIR}/output/contact/ ; mkdir -p $outputDir/pre_QC
+WKDIR=/working/lab_jonathb/alexandT/tgp_paper/wrangle_package_data/ ; cd $WKDIR
+dataDir=$WKDIR/data/contact/ ; mkdir $dataDir
+outDir=$WKDIR/output/contact/ ; mkdir -p $outDir/pre_QC
 
 echo "Trench ====================================================================="
 
-# reformat FitHiChIP
-Rscript code/wrangle_package_data/FitHiChIP_to_bedpe.R \
+# FitHiChIP to bedpe
+Rscript code/FitHiChIP_to_bedpe.R \
   --in.FitHiChIP /working/lab_georgiat/jonathB/PROJECTS/trench_lab/DoD_screen_GenomicAssays/integrate_CCVs_HiChIP/data/collect_data/HiChIP/FitHiChIP/Tumcells/MCF7.FitHiChIP.Peak2ALL.Q0.01.bed \
-  --out.bedpe $outputDir/pre_QC/Trench_MCF7_HiChIP.bedpe
+  --out.bedpe $outDir/pre_QC/Trench_MCF7_HiChIP.bedpe
+Rscript code/FitHiChIP_to_bedpe.R \
+  --in.FitHiChIP /working/lab_georgiat/jonathB/PROJECTS/trench_lab/DoD_screen_GenomicAssays/integrate_CCVs_HiChIP/data/collect_data/HiChIP/FitHiChIP/DoDcells/B80T5.FitHiChIP.Peak2ALL.Q0.01.bed \
+  --out.bedpe $outDir/pre_QC/Trench_HMEC_HiChIP.bedpe
 
 echo "Shi 2021 ====================================================================="
 mkdir $dataDir/Shi2021
@@ -35,7 +38,7 @@ for file in $dataDir/Shi2021/GSM*WashU.bed.gz ; do
   zcat $file |
   cut -f1-4 |
   sed 's/:\|-\|,/\t/g' \
-  > $outputDir/pre_QC/Shi2021_${celltype}_HiChIP.bedpe
+  > $outDir/pre_QC/Shi2021_${celltype}_HiChIP.bedpe
 done
 
 echo "Chen 2021 ====================================================================="
@@ -49,25 +52,25 @@ for file in ${dataDir}/Chen2021/GSM*.gz ; do
   zcat $file |
   sed 's/\s/\t/g' |
   cut -f1-6,8 \
-  > ${outputDir}/pre_QC/Chen2021_${filename}
+  > ${outDir}/pre_QC/Chen2021_${filename}
 done
 
 # merge duplicates and sum reads
-mergefile=${outputDir}/pre_QC/Chen2021_HCT116_HiChIP.bedpe
+mergefile=${outDir}/pre_QC/Chen2021_HCT116_HiChIP.bedpe
 join \
     -j 1 -t $'\t' -e 0 -a 1 -a 2 \
     -o 0,1.8,2.8 \
-    <( cat ${outputDir}/pre_QC/Chen2021_*1.intra.loop_counts.bedpe |
+    <( cat ${outDir}/pre_QC/Chen2021_*1.intra.loop_counts.bedpe |
        awk '{print $1"-"$2"-"$3"-"$4"-"$5"-"$6"\t"$0}' |
        sort -k1,1 ) \
-    <( cat ${outputDir}/pre_QC/Chen2021_*2.intra.loop_counts.bedpe |
+    <( cat ${outDir}/pre_QC/Chen2021_*2.intra.loop_counts.bedpe |
        awk '{print $1"-"$2"-"$3"-"$4"-"$5"-"$6"\t"$0}' |
        sort -k1,1 ) |
 sed 's/-/\t/g' |
 awk '{ for(i=7;i<=NF;i++) t+=$i ; print $0"\t"t ; t=0}' |
 cut -f1-6,9 \
 > ${mergefile}
-rm -f ${outputDir}/pre_QC/Chen2021_GSM*
+rm -f $outDir/pre_QC/Chen2021_GSM*
 
 echo "Giambartolomei 2021 ====================================================================="
 mkdir $dataDir/Giambartolomei2021
@@ -80,7 +83,7 @@ mkdir $dataDir/Giambartolomei2021
 zcat $dataDir/Giambartolomei2021/HiChIP_LNCaP.gz |
 sed 's/,\|:\|-/\t/g' |
 awk '{FS=OFS="\t"}{print $1,$2-2499,$3+2499,$4,$5-2499,$6+2499,$7}' \
-> $outputDir/pre_QC/Giambartolomei2021_LNCAP_HiChIP.bedpe
+> $outDir/pre_QC/Giambartolomei2021_LNCAP_HiChIP.bedpe
 
 echo "Liu 2021 ====================================================================="
 mkdir $dataDir/Liu2021
@@ -92,7 +95,7 @@ mkdir $dataDir/Liu2021
 
 zcat $dataDir/Liu2021/GSM5066590_LK2_HiChIP_H3K27ac.interactions.all.mango.txt.gz | 
 cut -f1-6,8 \
-> $outputDir/pre_QC/Liu2021_LK2_HiChIP.bedpe
+> $outDir/pre_QC/Liu2021_LK2_HiChIP.bedpe
 
 echo "Ma 2021 ====================================================================="
 mkdir $dataDir/Ma2021
@@ -106,44 +109,75 @@ mkdir $dataDir/Ma2021
 # reformat FitHiChIP
 for file in $dataDir/Ma2021/*bed.gz ; do
   celltype=${file%_merge.bed.gz} ; celltype=${celltype##*_} ; CELLTYPE=${celltype^^}
-  outfile=${outputDir}/pre_QC/Ma2021_${CELLTYPE}_HiChIP.bedpe
+  outfile=$outDir/pre_QC/Ma2021_${CELLTYPE}_HiChIP.bedpe
 
-  Rscript code/wrangle_package_data/FitHiChIP_to_bedpe.R \
+  Rscript code/FitHiChIP_to_bedpe.R \
   --in.FitHiChIP $file \
   --out.bedpe $outfile
 done
 
-echo "Corces 2020 ====================================================================="
-mkdir $dataDir/Corces2020
+echo "Bhattacharyya 2019 ====================================================================="
+mkdir $dataDir/Bhattacharyya2019/
+# WashU epigenome browser sessions: (http://epigenomegateway.wustl.edu/browser/)
+# GM12878 H3K27ac loop callsSession ID: b491c3d0-65f7-11e9-b334-5ff263937318
+# K562 H3K27ac loop callsSession ID: 019e06b0-65f4-11e9-921c-577d3df57445
 
-# # wget on hpcapp01
-# wget -r -nH -nc --no-parent -R "index.html*" -e robots=off --cut-dirs=100 \
-# https://ftp.ncbi.nlm.nih.gov/geo/samples/GSM4441nnn/GSM44418{30..41}/ \
-# -P /working/lab_jonathb/alexandT/tgp_paper/wrangle_package_data/data/contact/Corces2020/
+# https://zenodo.org/record/3255048/files/FitHiChIP_Source_Data_June2019.zip?download=1
+# (cd $dataDir/Bhattacharyya2019/ ; unzip FitHiChIP_Source_Data_June2019.zip)
 
-# reformat FitHiChIP
-mkdir $outputDir/replicates
-(for file in $dataDir/Corces2020/*bed.gz ; do
-  celltype=$(basename ${file##*CTRL-}) ; celltype=${celltype##*RCLN-} ; celltype=${celltype/-*/}
-  rep=$(ls $dataDir/Corces2020/*.bed.gz | grep $celltype | nl -nln | grep $(basename $file) | cut -f1 |tr -d ' ')
-  (for chr in chr{1..22} ; do
-    echo $celltype $rep $chr
-    infile=${outputDir}/replicates/Corces2020_${celltype}_${chr}_FitHiChIP_replicate${rep}.bed
-    outfile=${outputDir}/replicates/Corces2020_${celltype}_${chr}_HiChIP_replicate${rep}.bedpe
-    zcat $file | awk -v chr=$chr 'NR==1 || $1==chr' > $infile    
-    Rscript code/wrangle_package_data/FitHiChIP_to_bedpe.R \
-    --in.FitHiChIP $infile \
-    --out.bedpe $outfile
-    rm -f $infile
-  done)
-done)
-
+for celltype in GM12878 K562 ; do
+  infile=$(ls $dataDir/Bhattacharyya2019/FitHiChIP_Source_Data_June2019/$celltype/H3K27*ac/Combined_Replicates_HIChIP_Loops_2.5Kb_Binning/Table_*-2.5Kb-Bin.xlsx)
+  outfile=${outDir}/pre_QC/Bhattacharyya2019_${celltype}_HiChIP
+  
+  # xlsx to tsv
+  libreoffice --headless --convert-to csv --outdir $outDir/pre_QC/ $infile 
+  
+  # tsv to FitHiChIP
+  ( echo -e "chr1\ts1\te1\tchr2\ts2\te2\tQ-Value_Bias" ;  
+    tac $outDir/pre_QC/Table_*-2.5Kb-Bin.csv |
+    awk '/Chromosome/ {exit} 1' |
+    tac |
+    awk -F, -vOFS='\t' '{print $1,$2,$3,$1,$4,$5,$14}' 
+  ) | cat > $outfile.FitHiChIP
+  rm -f $outDir/pre_QC/Table_*-2.5Kb-Bin.csv
+  
+  # FitHiChIP to BEDPE
+  Rscript code/FitHiChIP_to_bedpe.R \
+  --in.FitHiChIP $outfile.FitHiChIP \
+  --out.bedpe $outfile.bedpe
+  rm -f $outfile.FitHiChIP
+done
 
 echo "Quality control ====================================================================="
-Rscript code/wrangle_package_data/contact_2.R
+Rscript code/contact_2.R
 
-
+###################
 # rejected files: #
+
+# echo "Corces 2020 =====================================================================" # not using brain panel anymore
+# mkdir $dataDir/Corces2020
+# 
+# # # wget on hpcapp01
+# # wget -r -nH -nc --no-parent -R "index.html*" -e robots=off --cut-dirs=100 \
+# # https://ftp.ncbi.nlm.nih.gov/geo/samples/GSM4441nnn/GSM44418{30..41}/ \
+# # -P /working/lab_jonathb/alexandT/tgp_paper/wrangle_package_data/data/contact/Corces2020/
+# 
+# # reformat FitHiChIP
+# mkdir $outDir/replicates
+# (for file in $dataDir/Corces2020/*bed.gz ; do
+#   celltype=$(basename ${file##*CTRL-}) ; celltype=${celltype##*RCLN-} ; celltype=${celltype/-*/}
+#   rep=$(ls $dataDir/Corces2020/*.bed.gz | grep $celltype | nl -nln | grep $(basename $file) | cut -f1 |tr -d ' ')
+#   (for chr in chr{1..22} ; do
+#     echo $celltype $rep $chr
+#     infile=${outDir}/replicates/Corces2020_${celltype}_${chr}_FitHiChIP_replicate${rep}.bed
+#     outfile=${outDir}/replicates/Corces2020_${celltype}_${chr}_HiChIP_replicate${rep}.bedpe
+#     zcat $file | awk -v chr=$chr 'NR==1 || $1==chr' > $infile    
+#     Rscript code/FitHiChIP_to_bedpe.R \
+#     --in.FitHiChIP $infile \
+#     --out.bedpe $outfile
+#     rm -f $infile
+#   done)
+# done)
 
 # echo "Schmidt 2020 =====================================================================" # YY1, not H3K27ac
 # mkdir $dataDir/Schmidt2020/
@@ -159,7 +193,7 @@ Rscript code/wrangle_package_data/contact_2.R
 #   sed 1d |
 #   cut -f1-6 |
 #   awk '{print "chr"$1,$2,$3,"chr"$4,$5,$6,"1"}' OFS='\t' \
-#   > $outputDir/pre_QC/Schmidt2020_${celltype}_HiChIP.bedpe
+#   > $outDir/pre_QC/Schmidt2020_${celltype}_HiChIP.bedpe
 # done
 
 # echo "Zirkel 2018 =====================================================================" # CTCF, not H3K27ac
@@ -173,7 +207,7 @@ Rscript code/wrangle_package_data/contact_2.R
 # # add score 
 # zcat $dataDir/Zirkel2018/GSM2936365_prolif_huv.bedpe.gz |
 # awk '{print $0"\t1"}' \
-# > $outputDir/pre_QC/Zirkel2018_HUVEC_HiChIP.bedpe
+# > $outDir/pre_QC/Zirkel2018_HUVEC_HiChIP.bedpe
 
 # echo "Shi 2021 =====================================================================" # old files
 # mkdir $dataDir/Shi2021
@@ -191,9 +225,9 @@ Rscript code/wrangle_package_data/contact_2.R
 # # reformat FitHiChIP
 # for file in ${dataDir}/Shi2021/*HiChIP_interactions.txt.gz ; do
 #   celltype=$( basename $file | sed 's/_HiChIP.*//g' | sed 's/_/\./g' ) ; CELLTYPE=${celltype^^} ; echo $CELLTYPE
-#   outfile=${outputDir}/pre_QC/Shi2021_${CELLTYPE}_HiChIP.bedpe
+#   outfile=${outDir}/pre_QC/Shi2021_${CELLTYPE}_HiChIP.bedpe
 # 
-#   Rscript code/wrangle_package_data/FitHiChIP_to_bedpe.R \
+#   Rscript code/FitHiChIP_to_bedpe.R \
 #   --in.FitHiChIP $file \
 #   --out.bedpe $outfile
 # done
@@ -211,4 +245,4 @@ Rscript code/wrangle_package_data/contact_2.R
 # sed '1d' |
 # awk '$7>0' |
 # cut -f1-7 \
-# > $outputDir/pre_QC/Huang2020_HELAS3_HiChIP.bedpe
+# > $outDir/pre_QC/Huang2020_HELAS3_HiChIP.bedpe

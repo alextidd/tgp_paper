@@ -1,10 +1,10 @@
 library(tidyverse)
 
 wkdir <- "/working/lab_jonathb/alexandT/tgp_paper/wrangle_package_data/" ; setwd(wkdir)
-outDir <- paste0(wkdir, "output/Traits/PrCa_GWAS_catalog/")
+outDir <- paste0(wkdir, "output/Traits/PrCa_GWASCatalog_index_proxies/")
 
 assoc_SNPs <- read.csv(
-  file = "data/Traits/PrCa/GWAS_catalog/efotraits_EFO_0001663-associations-2022-03-4.csv",
+  file = "data/Traits/PrCa/GWASCatalog/efotraits_EFO_0001663-associations-2022-03-4.csv",
   quote = "\"") %>% as_tibble %>%
   filter(Location != "Mapping not available") %>%
   separate_rows(Variant.and.risk.allele, sep = ", ") %>%

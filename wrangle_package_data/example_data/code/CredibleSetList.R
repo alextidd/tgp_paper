@@ -25,7 +25,7 @@ if(trait %in% c("PrCa_Giambartolomei2021", "PrCa_Dadaev2018")){
                      BestSNP = variant,
                      CredibleSet)
 }
-if(trait %in% c("BC", "PrCa_GWAS_catalog")){
+if(trait %in% c("BC")){
   best <- read_tibble(paste0(inDir, "best_SNP_per_CS.tsv"), header = T)
 }
 

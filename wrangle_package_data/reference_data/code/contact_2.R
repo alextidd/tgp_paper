@@ -41,24 +41,31 @@ if(length(replicate_prefixes)>0){
                        ".bedpe"),
                 quote = F, sep = "\t", row.names = F, col.names = F)
   }
+  # merge per-chromosome Corces files back together
+  system(paste(paste0("contactDir=", wkdir, "output/wrangle_package_data/contact/"),
+               "celltypes=$(ls $contactDir/by_chr/Corces*.bedpe | sed 's/.*Corces2020\\_//g' | sed 's/\\_.*//g' | sort -u)",
+               "(for celltype in ${celltypes[@]} ; do echo $celltype",
+               "outfile=$contactDir/pre_QC/Corces2020_${celltype}_HiChIP.bedpe ; > $outfile",
+               "(for chrfile in $contactDir/by_chr/*${celltype}* ; do cat $chrfile >> $outfile ; done)",
+               "done) ; ", sep = " ; "))
 }
 
-# merge per-chromosome Corces files back together
-system(paste(paste0("contactDir=", wkdir, "output/wrangle_package_data/contact/"),
-             "celltypes=$(ls $contactDir/by_chr/Corces*.bedpe | sed 's/.*Corces2020\\_//g' | sed 's/\\_.*//g' | sort -u)",
-             "(for celltype in ${celltypes[@]} ; do echo $celltype",
-             "outfile=$contactDir/pre_QC/Corces2020_${celltype}_HiChIP.bedpe ; > $outfile",
-             "(for chrfile in $contactDir/by_chr/*${celltype}* ; do cat $chrfile >> $outfile ; done)",
-             "done) ; ", sep = " ; "))
-
 # QC
-files <- list.files(preQCDir, pattern = "bedpe", full.names = T)
+
+# files in metadata only
+contact_metadata <- all_metadata %>% dplyr::filter(object == "contact")
+files <- list.files(preQCDir, pattern = "bedpe")
+if(length(setdiff(files, contact_metadata$file))>0){
+  stop("Files in pre_QC not found in contact metadata:\n", 
+       paste(setdiff(files, contact_metadata$file), collapse = "\n"))
+}
+
 contact <- list() 
-for(file in files[greplany(all_metadata$file, files)]){ # files in all_metadata only
-  acc <- basename(file) %>%  sub("(.*)\\..*$", "\\1", .)
-  info <- all_metadata %>% dplyr::filter(file == acc)
+for(file in files){ 
+  acc <- basename(file)
+  info <- contact_metadata %>% dplyr::filter(file == acc)
   df <- import_BEDPE_to_List(
-    file, metadata_cols = "score"
+    paste0(preQCDir, file), metadata_cols = "score"
   ) %>%
     purrr::map(~ .x %>%
                  # shift starts +1 so that bins are all mutually exclusive
@@ -90,7 +97,8 @@ for(file in files[greplany(all_metadata$file, files)]){ # files in all_metadata 
     dplyr::group_by(loop_ends)
   dup_IDs <-  test %>%
     dplyr::filter(
-      # if mirrored loops have the same score, exclude all but first / if they have different scores, exclude all but maximum
+      # if mirrored loops have the same score, exclude all but first 
+      # if they have different scores, exclude all but maximum
       rank(score, ties.method = "first") != 1) %>%
     dplyr::pull(InteractionID)
   far_IDs <- test %>%
@@ -99,19 +107,25 @@ for(file in files[greplany(all_metadata$file, files)]){ # files in all_metadata 
       min(abs(end.x - start.y), abs(end.y - start.x)) > interaction_max_distance) %>%
     dplyr::pull(InteractionID)
   
-  if(length(c(dup_IDs, far_IDs)) > 0){
+  # duplicate / far loops message
+  if(length(dup_IDs) > 0){
     message(length(dup_IDs), " / ", dplyr::n_distinct(test$InteractionID),
             " loops are duplicates. Each group of loops with identical ends is filtered to only include the maximum-scoring loop.")
+  }
+  if(length(far_IDs) > 0){
     message(length(far_IDs), " / ", dplyr::n_distinct(test$InteractionID),
             " loops are > ", interaction_max_distance, "bp apart and will be excluded.")
-    df <- df %>%
-      purrr::map(~ .x %>%
-                   # exclude lower-scoring duplicates and far loops
-                   dplyr::filter(InteractionID %ni% c(dup_IDs, far_IDs)) %>%
-                   # filter score > median(score), unless median(score) == max(score) (ie binary scoring)
-                   { if (median(.$score) < max(.$score)) dplyr::filter(., score > median(score)) else . })
   }
   
+  # filter
+  df <- df %>%
+    purrr::map(~ .x %>%
+                 # exclude lower-scoring duplicate loops and far loops
+                 dplyr::filter(InteractionID %ni% c(dup_IDs, far_IDs)) %>%
+                 # filter score > median(score), unless median(score) == max(score) (ie binary scoring)
+                 { if (median(.$score) < max(.$score)) dplyr::filter(., score > median(score)) else . }
+               )
+
   # quantile normalisation and decile binning
   df <- df %>%
     lapply(function(x){
@@ -133,7 +147,7 @@ for(file in files[greplany(all_metadata$file, files)]){ # files in all_metadata 
   df %>%
     purrr::reduce(dplyr::inner_join, by = c("InteractionID", "score")) %>%
     dplyr::select(chrom.x:end.x, chrom.y:end.y, score) %>%
-    write.table(file = paste0(postQCDir, info$file, ".bedpe"),
+    write.table(file = paste0(postQCDir, file),
                 quote = F,
                 row.names = F,
                 col.names = F,
