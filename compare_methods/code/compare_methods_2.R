@@ -13,10 +13,10 @@ cat(trait, celltypes, "#############\n")
 outDir <- paste("output", trait, celltypes, "", sep = "/")
       
 # get trait drivers / variants ====
-driversFile <- paste0(baseDir, "wrangle_package_data/output/traits/", trait, "/Drivers.txt")
+driversFile <- paste0(baseDir, "wrangle_package_data/traits/output/", trait, "/known_genes.txt")
 drivers <- read_tibble(driversFile)$V1 %>%
   check_driver_symbols(driversFile)
-variantsFile <- paste0(baseDir, "wrangle_package_data/output/traits/", trait, "/VariantList.bed")
+variantsFile <- paste0(baseDir, "wrangle_package_data/traits/output/", trait, "/variants/bed")
 variants <- import_BED(variantsFile,
                        metadata_cols = c("variant", "cs"))
 

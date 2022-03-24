@@ -12,7 +12,7 @@ celltypes=enriched_tissues # (enriched_tissues BRST.MCF7.CNCR_celltype all_cellt
 
 echo $trait $celltypes
 outDir=output/$trait/$celltypes/ ; mkdir -p $outDir
-TraitVarsBed=$baseDir/tgp_paper/wrangle_package_data/output/traits/$trait/VariantList.bed
+TraitVarsBed=$baseDir/tgp_paper/wrangle_package_data/traits/output/$trait/variants.bed
 
 # header
 echo -e "cs\tsymbol\tscore\tmethod" | gzip > $outDir/predictions_long.tsv.gz
@@ -78,9 +78,18 @@ if [ "$trait" == "PrCa_Giambartolomei2021" ] || [ "$trait" == "BC" ] ; then
   elif [ "$celltypes" = "enriched_tissues" ] ; then 
     # run: # code/get_EpiMAP.sh $trait
     
+    PMID="29059683" ; trait_info="breast cancer"
+    Trait_info=${trait_info^}
+    uid="$PMID - $Trait_info"
+    # to get links: filter to GWAS paper, scored links, distance to center < 2500
+    zcat data/EpiMAP/gwas_resources/all_gwas_SNP_links.tsv.gz |
+    awk -F'\t' -vOFS='\t' -v uid="$uid" \
+    '$13==uid && $7 != "NA" && $4 < 2500'  
+    
+    
     cat data/EpiMAP/GWAS_enrichments/$trait/corrlinks_inloci.tsv | 
     awk -F'\t' -vOFS='\t' 'NR > 1 && $6 != "NA" {print $1,$2-1,$2,$0}' |  
-    bedtools intersect -a - -b $baseDir/tgp_paper/wrangle_package_data/output/traits/$trait/CredibleSetList.bed -wa -wb | 
+    bedtools intersect -a - -b $baseDir/tgp_paper/wrangle_package_data/traits/output/$trait/CredibleSetList.bed -wa -wb | 
     awk -F'\t' -vOFS='\t' '{print $19,$9,$10,"EpiMAP"}' |
     gzip >> $outDir/predictions_long.tsv.gz
   elif [ "$celltypes" = "all_celltypes" ] ; then 
