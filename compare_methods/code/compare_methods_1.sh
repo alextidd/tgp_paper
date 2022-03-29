@@ -12,7 +12,7 @@ celltypes=enriched_tissues # (enriched_tissues BRST.MCF7.CNCR_celltype all_cellt
 
 echo $trait $celltypes
 outDir=output/$trait/$celltypes/ ; mkdir -p $outDir
-TraitVarsBed=$baseDir/tgp_paper/wrangle_package_data/traits/output/$trait/variants.bed
+TraitVarsBed=$baseDir/tgp_paper/wrangle_package_data/traits/output/$trait.bed
 
 # header
 echo -e "cs\tsymbol\tscore\tmethod" | gzip > $outDir/predictions_long.tsv.gz
