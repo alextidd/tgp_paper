@@ -1,23 +1,26 @@
 opts <- commandArgs(trailingOnly = T)
-trait <- opts[1] # trait = "BC" #
+trait <- opts[1] # trait = "BC_Michailidou2017_FM" #
 celltypes <- opts[2] # celltypes = "enriched_tissues" #
 
-baseDir<- "/working/lab_jonathb/alexandT/tgp_paper/"
+base_dir<- "/working/lab_jonathb/alexandT/tgp_paper/"
 wkdir <- "/working/lab_jonathb/alexandT/tgp_paper/compare_methods/" ; setwd(wkdir)
 variant_to_gene_max_distance = 2e6
-max_n_drivers_per_CS = Inf
+max_n_known_genes_per_CS = Inf
 
 devtools::load_all("/working/lab_jonathb/alexandT/tgp/")
 
 cat(trait, celltypes, "#############\n")
-outDir <- paste("output", trait, celltypes, "", sep = "/")
+out_dir <- paste("output", trait, celltypes, "", sep = "/")
       
-# get trait drivers / variants ====
-driversFile <- paste0(baseDir, "wrangle_package_data/traits/output/", trait, "/known_genes.txt")
-drivers <- read_tibble(driversFile)$V1 %>%
-  check_driver_symbols(driversFile)
-variantsFile <- paste0(baseDir, "wrangle_package_data/traits/output/", trait, "/variants/bed")
-variants <- import_BED(variantsFile,
+# get methods metadata ====
+metadata <- read_tibble("output/metadata.tsv", header = T)
+
+# get trait known_genes / variants ====
+known_genes_file <- paste0(base_dir, "wrangle_package_data/traits/output/", trait, "/known_genes.txt")
+known_genes <- read_tibble(known_genes_file)$V1 %>%
+  check_known_genes(known_genes_file)
+variants_file <- paste0(base_dir, "wrangle_package_data/traits/output/", trait, "/variants.bed")
+variants <- import_BED(variants_file,
                        metadata_cols = c("variant", "cs"))
 
 # ##
@@ -25,7 +28,7 @@ variants <- import_BED(variantsFile,
 # tested_ABC <- read_tibble("../../ABC-GWAS-Paper/ABC-Max/out/ABC/IBD/ABC_settings/PR_tested_CredibleSets.tsv", header = T) 
 # variants <- variants %>% dplyr::filter(cs %in% tested_ABC$CredibleSet)
 # variant_to_gene_max_distance = 1e6
-# max_n_drivers_per_CS = 1
+# max_n_known_genes_per_CS = 1
 # ##
 
 # txv masterlist ====
@@ -52,9 +55,9 @@ gxc_master <- txv_master %>%
 distance_predictions <- txv_master %>%
   dplyr::group_by(variant) %>%
   # Calculate inverse of the absolute bp distance for each variant-transcript pair
-  dplyr::mutate(invDistanceToTSS = 1/distance,
+  dplyr::mutate(inv_distance = 1/distance,
                 # ranking transcript TSSs (if two transcript TSSs are equidistant to the variant, they will receive the same, lower rank)
-                invDistanceToTSSRank = 1/rank(distance, ties.method = "min")) %>%
+                inv_distance_rank = 1/rank(distance, ties.method = "min")) %>%
   dplyr::select(variant, cs, symbol, dplyr::starts_with("inv"))
 
 # get method predictions ====
@@ -73,8 +76,8 @@ method_predictions <- read_tibble(
 
 # gather all predictions ===
 predictions <- gxc_master %>%
-  dplyr::left_join(method_predictions) %>%
-  dplyr::left_join(distance_predictions)
+  dplyr::left_join(method_predictions, by = c("cs", "symbol")) %>%
+  dplyr::left_join(distance_predictions, by = c("cs", "symbol"))
 predictions[is.na(predictions)] <- 0
 # # TODO: add measure of inter-method concurrence (common SNP-gene links)
 # predictions %>%
@@ -92,16 +95,16 @@ predictions[is.na(predictions)] <- 0
 performance <- predictions %>%
   get_PR(.,
          txv_master,
-         drivers,
+         known_genes,
          pcENSGs,
-         max_n_drivers_per_CS)
+         max_n_known_genes_per_CS)
 
 # write performance
 write_tibble(performance$summary %>% 
                dplyr::mutate(trait = trait) %>%
                dplyr::select(trait, everything()) %>%
                dplyr::select(-prediction_type), 
-             paste0(outDir, "performance.tsv"))
+             paste0(out_dir, "performance.tsv"))
 
 # plot performance ===
 
@@ -110,34 +113,36 @@ performance_to_plot <- performance %>%
   purrr::map(
     ~ .x %>%
       dplyr::group_by(prediction_method) %>%
-      dplyr::mutate(prediction_method = prediction_method %>%
-                      paste0(" (", PR_AUC %>% max %>% round(2), ")"))
+      dplyr::mutate(method = prediction_method %>%
+                      paste0(" (", PR_AUC %>% max %>% round(2), ")")) 
   )
 
 # subtitle
 plot_subtitle <- paste0(
   "\nTrait = ", trait,
   ", Celltypes = " , celltypes,
-  "\nmax n drivers per CS = ", max_n_drivers_per_CS, 
+  "\nmax n known_genes per CS = ", max_n_known_genes_per_CS, 
   ", max distance = ", variant_to_gene_max_distance)
+colours <- metadata$colour ; names(colours) <- metadata$method
 
-PR <- performance_to_plot %>%
-  plot_PR +
+PR <- performance_to_plot %>% plot_PR(colour = prediction_method) +
   ggplot2::ggtitle(paste("Precision-Recall\n", plot_subtitle)) +
+  ggplot2::scale_colour_manual(values = colours) +
   ggrepel::geom_text_repel(
-    data = . %>% dplyr::filter(prediction_type == "max"))
+    data = . %>% dplyr::filter(prediction_type == "max")) 
 AUPRC <- performance_to_plot %>%
-  plot_AUPRC +
-  ggplot2::ggtitle(paste("Area under Precision-Recall curve\n", plot_subtitle))
+  plot_AUPRC(fill = prediction_method) +
+  ggplot2::ggtitle(paste("Area under Precision-Recall curve\n", plot_subtitle)) +
+  ggplot2::scale_fill_manual(values = colours) 
 
 # save plots
+out <- gridExtra::grid.arrange(
+  PR + ggplot2::theme(legend.position = "none"),
+  AUPRC + ggplot2::theme(legend.position = "none"),
+  ncol = 2)
 {
-  pdf(paste0(outDir, "performance.pdf"), onefile = T, width = 15)
-  gridExtra::grid.arrange(
-    PR + ggplot2::theme(legend.position = "none"),
-    AUPRC + ggplot2::theme(legend.position = "none"),
-    ncol = 2)
-  dev.off()
+  ggplot2::ggsave(paste0(out_dir, "performance.pdf"), out, width = 15)
+  ggplot2::ggsave(paste0(out_dir, "performance.png"), out, width = 15)
 }
 
 

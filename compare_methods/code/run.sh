@@ -1,16 +1,16 @@
 #!/bin/bash
 baseDir=/working/lab_jonathb/alexandT/ ; cd $baseDir
 
-# run ABC
-( cd ABC-GWAS-Paper/ABC-Max/
-  run/run.sh ABC $trait NA tgp_settings
-)
-
-# run tgp
-module load R/4.0.2
-( cd tgp/ 
-  Rscript run/run.R $trait
-)
+# # run ABC
+# ( cd ABC-GWAS-Paper/ABC-Max/
+#   run/run.sh ABC $trait NA tgp_settings
+# )
+# 
+# # run tgp
+# module load R/4.0.2
+# ( cd tgp/ 
+#   Rscript run/run.R $trait
+# )
 
 # compare methods
 ( cd tgp_paper/compare_methods/
