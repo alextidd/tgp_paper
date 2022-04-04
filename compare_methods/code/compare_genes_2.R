@@ -24,12 +24,13 @@ known_genes <- read_tibble(known_genes_file)$V1 %>%
 g_master <- TSSs %>% 
   distinct(symbol, ensg) %>%
   filter(ensg %in% pcENSGs) %>%
-  transmute(symbol,
-                   known_gene = symbol %in% known_genes$symbol) %>%
+  transmute(
+    symbol,
+    known_gene = symbol %in% known_genes$symbol
+    ) %>%
   distinct()
 kg_master <- g_master %>% 
   filter(known_gene)
-
 
 # get gene predictions ====
 gene_predictions <- read_tibble(
@@ -38,6 +39,8 @@ gene_predictions <- read_tibble(
 ) %>% 
   # protein-coding
   filter(symbol %in% g_master$symbol) %>%
+  # remove CIMBA
+  filter(!grepl("CIMBA", cs)) %>%
   # generate CS names for methods that don't provide them, as a placeholder for grouping
   group_by(method) %>%
   mutate(cs = case_when(is.na(cs) ~ paste0("cs.", row_number()),
@@ -45,9 +48,9 @@ gene_predictions <- read_tibble(
 
 # STEP 1 ====
 gene_predictions %>%  
-  # max gene per CS
+  # max protein-coding gene predicted per CS
   group_by(method, cs) %>%
-  filter(score == max(score)) %>%
+  filter(score == max(score)) %>% 
   # add known genes
   full_join(crossing(kg_master, tibble(method = unique(gene_predictions$method)))) %>%
   mutate(known_gene = known_gene %>% replace_na(FALSE),
@@ -71,7 +74,7 @@ method_stats %>%
   ggplot(aes(x = Recall, y = Precision, colour = method)) +
   geom_point() + 
   scale_colour_manual(values = colours) +
-  coord_equal()  -> p
+  coord_equal() 
 
 # STEP 2 ====
 pr_in <- gene_predictions %>%

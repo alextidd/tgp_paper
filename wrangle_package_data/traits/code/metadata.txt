@@ -1,0 +1,2 @@
+https://docs.google.com/spreadsheets/d/1a7ZhV_87xfMckiodEZTZDfjs7TfwBRaYNTTKHHQyOhw/edit#gid=0 > output/variants_metadata.tsv
+https://docs.google.com/spreadsheets/d/1a7ZhV_87xfMckiodEZTZDfjs7TfwBRaYNTTKHHQyOhw/edit#gid=18528784 > output/known_genes_metadata.tsv
