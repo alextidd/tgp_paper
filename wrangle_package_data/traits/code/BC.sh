@@ -5,7 +5,7 @@
 
 # Michailidou2017 FM #
 mkdir output/BC_Michailidou2017_FM/
-( echo -e "chrom\tstart\tend\tvariant\tCredibleSet" ;
+( echo -e "chrom\tstart\tend\tvariant\tcs" ;
   cat /working/lab_georgiat/jonathB/bcac_oncoarray/BCACFM.CCRV.STRONG.variants.bed |
   awk -F'\t' -v OFS='\t' '{print $1,$2,$3,$4,$7,$8}'  |
   sed_ichav |
