@@ -8,7 +8,8 @@ SNiPA_to_variants () {
     ( echo -e "chrom\tstart\tend\tvariant\tCredibleSet" ;
       cat proxySearch.results.csv |
       awk -F'\t' -vOFS='\t' 'NR > 1 {print "chr"$4,$6-1,$6,$2,$1}' ) |
-    cat > variants.tsv
+    cat |
+    sort -k1,1 -k2,2n > variants.tsv
     sed 1d variants.tsv > variants.bed
   )
 }

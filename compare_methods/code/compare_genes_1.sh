@@ -1,26 +1,34 @@
 #!/bin/bash
 module load bedtools/2.27.1
+module load R/4.0.2
 
-# Michailidou2017 x BRST.MCF7.CNCR method gene predictions #
-trait=BC_Michailidou2017_FM
-celltypes=BRST.MCF7.CNCR_celltype # (enriched_tissues BRST.MCF7.CNCR_celltype all_celltypes)
-
+#trait=BC_Michailidou2017_FM
 base_dir=/working/lab_jonathb/alexandT/ ; 
 WKDIR=$base_dir/tgp_paper/compare_methods/ ; cd $WKDIR
-out_dir=output/$trait/$celltypes/ ; mkdir -p $out_dir
+out_dir=output/$variants/ ; mkdir -p $out_dir
 
-variants_bed=$base_dir/tgp_paper/wrangle_package_data/traits/output/$trait/variants.bed
+variants_bed=$base_dir/tgp_paper/wrangle_package_data/traits/output/$variants/variants.bed
 traits_metadata=$base_dir/tgp_paper/wrangle_package_data/traits/output/metadata.tsv
-PMID=$(cat $traits_metadata | awk -v trait="$trait" '$2 == trait {print $5}')
-EpiMAP_BSS=$(cat data/EpiMAP/metadata/main_metadata_table.tsv | awk '$3=="MCF-7" {print $1}')
+#PMID=$(cat $traits_metadata | awk -v trait="$trait" '$2 == trait {print $5}')
+#EpiMAP_BSS=$(cat data/EpiMAP/metadata/main_metadata_table.tsv | awk '$3=="MCF-7" {print $1}')
 
 (
-  echo -e "variant\tcs\tsymbol\tscore\tmethod" > $out_dir/predictions.tsv
+  echo -e "variant\tcs\tsymbol\tscore\tmethod" ;
     
-  # tgp #
-  cat $base_dir/tgp/out/$trait/$celltypes/target_gene_predictions_full.tsv |
-  awk -F'\t' -vOFS='\t' 'NR > 1 {print $5,$1,$6,$7,"tgp"}' |
-  sort -u >> $out_dir/predictions.tsv
+  # tgp enriched_celltypes #
+  cat $base_dir/tgp/out/$variants/enriched_celltypes/target_gene_predictions_full.tsv |
+  awk -F'\t' -vOFS='\t' 'NR > 1 && $7 > 0 {print $5,$1,$6,$7,"tgp_enriched_celltypes"}' |
+  sort -u ;
+  
+  # tgp enriched tissues #
+  cat $base_dir/tgp/out/$variants/enriched_tissues/target_gene_predictions_full.tsv |
+  awk -F'\t' -vOFS='\t' 'NR > 1 && $7 > 0 {print $5,$1,$6,$7,"tgp_enriched_tissues"}' |
+  sort -u ;
+  
+  # tgp all celltypes #
+  cat $base_dir/tgp/out/$variants/all_celltypes/target_gene_predictions_full.tsv |
+  awk -F'\t' -vOFS='\t' 'NR > 1 && $7 > 0 {print $5,$1,$6,$7,"tgp_all_celltypes"}' |
+  sort -u ;
   
   # closest #
   bedtools closest \
@@ -28,21 +36,17 @@ EpiMAP_BSS=$(cat data/EpiMAP/metadata/main_metadata_table.tsv | awk '$3=="MCF-7"
     -b <(zcat $base_dir/tgp_paper/wrangle_package_data/reference_panels/data/GENCODE/gencode.v34lift37.basic.tss.bed.gz) |
   cut -f4,5,10 |
   awk '{print $0"\t1\tclosest"}' | 
-  sort -u >> $out_dir/predictions.tsv
+  sort -u ;
   
   # ABC_all_celltypes 
   # from cS2G: we used ABC links, kept the maximum ABC score across the 167 cell-types 
   # when an enhancer was interacting with a gene in multiple cell-types, and used this 
   # score as raw linking value.
-  zcat data/ABC/AllPredictions.AvgHiC.ABC0.015.minus150.ForABCPaperV3.txt.gz | 
-  cut -f1-3,7,21 |
-  sort -k5,5nr | 
-  sort -u -k1,1 -k2,2n -k4,4 |
-  sort -k1,1 -k2,2n |
+  zcat data/ABC/ABC_AllPredictions_collapsed.bed.gz |
   bedtools intersect -a $variants_bed -b - -wa -wb |
   cut -f4,5,9,10 |
   awk '{print $0"\tABC_all_celltypes"}' | 
-  sort -u >> $out_dir/predictions.tsv
+  sort -u ;
   
   # # ABC_MCF7 #
   # zcat data/ABC/AllPredictions.AvgHiC.ABC0.015.minus150.ForABCPaperV3.txt.gz | 
@@ -68,23 +72,11 @@ EpiMAP_BSS=$(cat data/EpiMAP/metadata/main_metadata_table.tsv | awk '$3=="MCF-7"
   # correlation across 833 cell-types, kept the maximum correlation when an enhancer
   # was linked to a gene in multiple tissues, and used this correlation as raw linking
   # value.
-  (> $out_dir/EpiMAP_corrlinks.tmp.gz ; for file in data/EpiMAP/links/links_corr_only/BSS*_collated_pred.tsv.gz ; do 
-    echo $file
-    join -1 6 -2 4 -t$'\t' -o 1.1,1.2,1.3,1.4,1.5,2.5,1.7 \
-    <(  zcat $file | 
-        bedtools intersect -a - -b $variants_bed -wa -wb | 
-        awk -F'\t' -vOFS='\t' '{print $1,$2,$3,$10,$11,$4,$5}' | 
-        sort -k6,6 ) \
-    <(  zcat $base_dir/tgp_paper/wrangle_package_data/reference_panels/data/GENCODE/gencode.v34lift37.basic.tss.bed.gz | 
-        sort -k4,4 ) |
-    gzip >> $out_dir/EpiMAP_corrlinks_collapsed.bed.gz
-  done)
-  zcat $out_dir/EpiMAP_corrlinks_collapsed.bed.gz |
-  sort -k7,7nr | 
-  sort -u -k1,1 -k2,2n -k6,6 | 
-  cut -f4- |
-  awk '{print $0"\tEpiMAP_all_celltypes"}' | 
-  sort -u >> $out_dir/predictions.tsv
+  # must run data/EpiMAP/links/EpiMAP_corrlinks_collapsed.sh to generate collapsed links for intersection
+  zcat data/EpiMAP/links/EpiMAP_corrlinks_collapsed.bed.gz |
+  bedtools intersect -a - -b $variants_bed -wa -wb | 
+  awk -F'\t' -vOFS='\t' '{print $9,$10,$4,$5,"EpiMAP_all_celltypes"}' |
+  sort -u ;
   
   # # EpiMAP #
   # join -1 9 -2 4 -t$'\t' -o 1.1,1.2,1.3,1.5,2.5,1.10 \
@@ -111,5 +103,6 @@ EpiMAP_BSS=$(cat data/EpiMAP/metadata/main_metadata_table.tsv | awk '$3=="MCF-7"
   # awk -F'\t' -vOFS='\t' '{print "NA",$0,"1","MAGMA"}' | 
   # sort -u ;
   
-) #| cat > $out_dir/predictions.tsv
+) | cat > $out_dir/predictions.tsv
 
+Rscript code/compare_genes_2.R
