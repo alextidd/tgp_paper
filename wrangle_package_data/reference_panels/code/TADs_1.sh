@@ -2,6 +2,7 @@
 WKDIR=/working/lab_jonathb/alexandT/tgp_paper/wrangle_package_data/reference_panels/
 data_dir=${WKDIR}/data/TADs/ ; mkdir $data_dir
 out_dir=${WKDIR}/output/TADs/ ; mkdir $out_dir
+module load bedtools/2.27.1
 
 
 ## Trench ## (breast)
@@ -27,7 +28,6 @@ mkdir $data_dir/Rao2014/
 # -P /working/lab_jonathb/alexandT/tgp_paper/wrange_package_data/data/TADs/Rao2014/
 
 # domainlist contains non-exclusive intervals, so must merge first (and exclude mouse samples)
-module load bedtools/2.27.1
 for file in $(ls $data_dir/Rao2014/*domainlist.txt.gz | grep -v "CH12-LX") ; do
   filename=$(basename $file)
   celltype=${filename#*_} ; celltype=${celltype%%_*} ; celltype=${celltype^^}
@@ -67,8 +67,8 @@ mkdir $data_dir/Smith2021/
 # wget \
 # https://ftp.ncbi.nlm.nih.gov/geo/series/GSE158nnn/GSE158007/suppl/GSE158007_HCT116_40kb_TADs.bed.gz \
 # -P /working/lab_jonathb/alexandT/tgp_paper/wrange_package_data/data/TADs/Smith2021/
-
-zcat $data_dir/Smith2021/GSE158007_HCT116_40kb_TADs.bed.gz \
+zcat $data_dir/Smith2021/GSE158007_HCT116_40kb_TADs.bed.gz |
+bedtools merge \
 > $out_dir/HCT116.bed
 
 
