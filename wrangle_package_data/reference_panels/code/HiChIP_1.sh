@@ -16,12 +16,15 @@ outDir=$WKDIR/output/HiChIP/ ; mkdir -p $outDir/pre_QC
 echo "Trench ====================================================================="
 
 # FitHiChIP to bedpe
+Trench_FitHiChIP_dir=/working/lab_georgiat/jonathB/PROJECTS/trench_lab/DoD_screen_GenomicAssays/integrate_CCVs_HiChIP/data/collect_data/HiChIP/FitHiChIP/
 Rscript code/FitHiChIP_to_bedpe.R \
-  --in.FitHiChIP /working/lab_georgiat/jonathB/PROJECTS/trench_lab/DoD_screen_GenomicAssays/integrate_CCVs_HiChIP/data/collect_data/HiChIP/FitHiChIP/Tumcells/MCF7.FitHiChIP.Peak2ALL.Q0.01.bed \
-  --out.bedpe $outDir/pre_QC/Trench_MCF7_HiChIP.bedpe
-Rscript code/FitHiChIP_to_bedpe.R \
-  --in.FitHiChIP /working/lab_georgiat/jonathB/PROJECTS/trench_lab/DoD_screen_GenomicAssays/integrate_CCVs_HiChIP/data/collect_data/HiChIP/FitHiChIP/DoDcells/B80T5.FitHiChIP.Peak2ALL.Q0.01.bed \
+  --in.FitHiChIP $Trench_FitHiChIP_dir/DoDcells/B80T5.FitHiChIP.Peak2ALL.Q0.01.bed \
   --out.bedpe $outDir/pre_QC/Trench_HMEC_HiChIP.bedpe
+for celltype in MCF7 T47D ; do echo $celltype
+  Rscript code/FitHiChIP_to_bedpe.R \
+    --in.FitHiChIP $Trench_FitHiChIP_dir/Tumcells/$celltype.FitHiChIP.Peak2ALL.Q0.01.bed \
+    --out.bedpe $outDir/pre_QC/Trench_${celltype}_HiChIP.bedpe
+done
 
 echo "Shi 2021 ====================================================================="
 mkdir $dataDir/Shi2021

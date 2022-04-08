@@ -98,12 +98,12 @@ module load R/4.0.2
     # awk -F'\t' -vOFS='\t' -v PMID="$PMID" '$1 == PMID {print "chr"$3,$4-1,$4,"NA",$6,$7,"cS2G"}' | 
     # sort -u >> $out_dir/predictions.tsv
   
-    # MAGMA # 
+    # MAGMA # maximum positive Z score
     bedtools intersect \
       -a $variants_bed \
       -b <(awk 'NR>1 {print "chr"$2"\t"$3"\t"$4"\t"$0}' data/MAGMA/$variants/magma.genes.out | sort -k1,1 -k2,2n) \
       -wa -wb |
-    awk -F'\t' -vOFS='\t' '{print $4,$5,$18,$16,"MAGMA"}' |
+    awk -F'\t' -vOFS='\t' '$16 !~ "-" {print $4,$5,$18,$16,"MAGMA"}' |
     sort -u ;
     
   ) | cat > $out_dir/predictions.tsv
