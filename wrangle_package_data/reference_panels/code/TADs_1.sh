@@ -1,13 +1,13 @@
 #!/bin/bash
 WKDIR=/working/lab_jonathb/alexandT/tgp_paper/wrangle_package_data/reference_panels/
-data_dir=${WKDIR}/data/TADs/ ; mkdir $data_dir
-out_dir=${WKDIR}/output/TADs/ ; mkdir $out_dir
+data_dir=$WKDIR/data/TADs/ ; mkdir $data_dir
+out_dir=$WKDIR/output/TADs/ ; mkdir $out_dir
 module load bedtools/2.27.1
 
 
 ## Trench ## (breast)
-# https://docs.google.com/spreadsheets/d/1LAdGdI5F2ZWYWD-GPLV3fNd3RxUXdokJ7TADrQngGNA/edit?usp=sharing
 mkdir $data_dir/Trench/
+# manually coppied from https://docs.google.com/spreadsheets/d/1LAdGdI5F2ZWYWD-GPLV3fNd3RxUXdokJ7TADrQngGNA/edit?usp=sharing
 cat $data_dir/Trench/T47D.TADs.nonTADS.bed |
 cut -f1-3 \
 > $out_dir/T47D.bed
@@ -79,6 +79,19 @@ tar xvzf $data_dir/Javierre2016/TAD_definitions.tar.gz -C $data_dir/Javierre2016
 cat $data_dir/Javierre2016/TADs_nCD4_mean_merged.bed |
 awk -F'\t' -vOFS='\'t 'NR>1{print "chr"$1,$2,$3}' \
 > $out_dir/CD4.bed
+
+
+## Schmitt 2016 ##
+mkdir $data_dir/Schmitt2016/
+# manually copied from https://ars.els-cdn.com/content/image/1-s2.0-S2211124716314814-mmc4.xlsx, Sheet "OV"
+cat $data_dir/Schmitt2016/1-s2.0-S2211124716314814-mmc4_OV.tsv \
+> $out_dir/OVRY.bed
+
+
+## Save to RDS ##
+module load R/4.0.2
+Rscript code/TADs_2.R
+
 
 
 # ## Meir 2020 ## ! cannot find TADs file

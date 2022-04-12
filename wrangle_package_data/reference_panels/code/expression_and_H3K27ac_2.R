@@ -1,7 +1,7 @@
 #!/usr/bin/Rscript
 setwd("/working/lab_jonathb/alexandT/tgp_paper/wrangle_package_data/reference_panels/")
-dir.create("output/expression/")
-dir.create("output/H3K27ac/")
+dir.create("output/expression/", showWarnings = F)
+dir.create("output/H3K27ac/", showWarnings = F)
 
 # load libraries
 suppressPackageStartupMessages(library(dplyr))
@@ -43,10 +43,11 @@ TSSs <- read.delim(gzfile("data/GENCODE/gencode.v34lift37.basic.tss.bed.gz"),
 names(TSSs) <- c("chrom", "start", "end", "ensg", "symbol", "enst")
 
 # import expression data, combine and tidy
-expression_raw <- dir("data/expression/", full.names = T) %>%
+expression_files <- dir("data/expression/", pattern = ".tsv", full.names = T) 
+expression_raw <- expression_files %>%
   map(~ .x %>% read.delim %>% as_tibble %>% 
-        rename(gene_id = 1, TPM = 2) )
-names(expression_raw) <- dir("data/expression/") %>% tools::file_path_sans_ext()
+        rename(gene_id = 1, TPM = 2))
+names(expression_raw) <- expression_files %>% basename %>% tools::file_path_sans_ext()
 expression_raw <- expression_raw %>% 
   # bind rows
   bind_rows(.id = "acc") %>%
@@ -68,8 +69,8 @@ expression_raw <- expression_raw %>%
 
 ##### H3K27ac #####
 # import H3K27ac matrix
-H3K27ac_raw <- read.delim("output/H3K27ac/H3K27ac_input_matrix.tsv") %>%
-  mutate(region = paste0(X..chr.,":",X.start.,"-",X.end.)) %>%
+H3K27ac_raw <- read.delim("output/H3K27ac/H3K27ac_input_matrix.tsv.tmp") %>%
+  mutate(region = paste0(X..chr., ":", X.start., "-", X.end.)) %>%
   select(region, everything(), -X..chr., -X.start., -X.end.) %>% 
   column_to_rownames("region") %>% as.matrix
 colnames(H3K27ac_raw) <- colnames(H3K27ac_raw) %>%

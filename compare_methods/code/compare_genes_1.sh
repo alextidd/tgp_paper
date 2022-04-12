@@ -1,4 +1,5 @@
 #!/bin/bash
+
 module load bedtools/2.27.1
 module load R/4.0.2
 
@@ -114,6 +115,6 @@ pdfunite output/*/performance.pdf output/performance.pdf
 
 # unite performance plot pngs
 (
-cd output/ ; for png in */performance.png ; do cp $png ${png%%/*}.png ; done
+cd output/ ; for png in */performance.png ; do cp $png ${png%/*}.png ; done
 zip performance.png.zip *.png ; rm -f *.png
 )

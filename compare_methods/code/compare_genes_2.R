@@ -7,6 +7,14 @@ max_n_known_genes_per_CS = Inf
 base_dir <- "/working/lab_jonathb/alexandT/tgp_paper/"
 wkdir <- paste0(base_dir, "compare_methods/") ; setwd(wkdir)
 
+# metadata ====
+methods_metadata <- read_tibble("output/metadata.tsv", header = T)
+colours_df <- methods_metadata %>% 
+  left_join(performance$summary %>% select(method, prediction_method)) %>%
+  filter(!is.na(prediction_method))
+colours <- colours_df$colour
+names(colours) <- colours_df$prediction_method
+
 # functions ====
 get_performance <- function(confusion_mat, 
                             variants_name){
@@ -33,9 +41,6 @@ all_variants <- list() ; for(variants_name in
   cat(variants_name, "#############\n")
   out_dir <- paste0("output/", variants_name, "/")
     
-  # get methods metadata ====
-  methods_metadata <- read_tibble("output/metadata.tsv", header = T)
-  
   # get variants files ====
   variants_metadata <- paste0(base_dir, "/wrangle_package_data/traits/output/metadata.tsv") %>%
     read_tibble(header = T) %>%
@@ -81,11 +86,6 @@ all_variants <- list() ; for(variants_name in
   if(nrow(no_preds) > 0){message(paste(no_preds$prediction_method,collapse=", "), "\n... has no positive predictions - check predictions file for errors!")}
 
   # plot performance ====
-  colours_df <- methods_metadata %>% 
-    left_join(performance$summary %>% select(method, prediction_method)) %>%
-    filter(!is.na(prediction_method))
-  colours <- colours_df$colour
-  names(colours) <- colours_df$prediction_method
   plot_settings <- list(
     scale_colour_manual(values = colours, limits = force),
     scale_fill_manual(values = colours, limits = force),
@@ -149,9 +149,23 @@ all_performance <- all_variants %>%
   bind_rows(.id = "variants") %>%
   group_by(method) %>%
   summarise(across(where(is.numeric), sum)) %>%
-  get_performance(variants_name = "all_variants")
-all_performance_plot <- plot_performance(methods_metadata, all_performance, variants_name = "all_variants",
-                 max_n_known_genes_per_CS, variant_to_gene_max_distance)
+  get_performance(variants_name = "all_variants") %>%
+  mutate(prediction_method = method)
+all_performance %>%
+  mutate(fsc = F_score) %>%
+  pivot_longer(cols = c(F_score, Precision, Recall),
+               names_to = "metric",
+               values_to = "performance") %>%
+  ggplot(aes(x = reorder(prediction_method, fsc),
+             y = performance,
+             fill = prediction_method)) +
+  geom_col() +
+  facet_grid(~ metric,
+             scales = "free", space = "free_y") +
+  coord_flip() +
+  theme(axis.title = element_blank()) +
+  plot_settings
+
 # write output
 write_tibble(all_performance, 
              paste0("output/all_variants/performance.tsv"))
