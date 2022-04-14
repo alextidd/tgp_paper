@@ -16,9 +16,14 @@ sed 1d output/EOC_Jones2020_FM/variants.tsv > output/EOC_Jones2020_FM/variants.b
 
 # Yamulla2020 #
 get_kgs EOC \
-<(  cat data/Yamulla2020/Table1.tsv |
-    sed 1d | cut -f1 | tr a-z A-Z )
-    
+<(  ( cat data/Yamulla2020/Table1.tsv |
+      sed 1d | cut -f1 | tr a-z A-Z ; 
+      cat data/Dietlein2020/NIHMS1546846-supplement-2_Supplementary_Table_3.tsv |
+      awk -F'\t' -vOFS='\t' '$2 == "Ovarian" && $4 != "level D" {print $1}' ; 
+    ) | cat | sort -u 
+  )
+
+
     
 
 # # Phelan2017 LD #

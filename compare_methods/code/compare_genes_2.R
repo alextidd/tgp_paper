@@ -9,11 +9,6 @@ wkdir <- paste0(base_dir, "compare_methods/") ; setwd(wkdir)
 
 # metadata ====
 methods_metadata <- read_tibble("output/metadata.tsv", header = T)
-colours_df <- methods_metadata %>% 
-  left_join(performance$summary %>% select(method, prediction_method)) %>%
-  filter(!is.na(prediction_method))
-colours <- colours_df$colour
-names(colours) <- colours_df$prediction_method
 
 # functions ====
 get_performance <- function(confusion_mat, 
@@ -85,6 +80,13 @@ all_variants <- list() ; for(variants_name in
   no_preds <- performance$summary %>% filter(Positive == 0)
   if(nrow(no_preds) > 0){message(paste(no_preds$prediction_method,collapse=", "), "\n... has no positive predictions - check predictions file for errors!")}
 
+  # colours ====
+  colours_df <- methods_metadata %>% 
+    left_join(performance$summary %>% select(method, prediction_method)) %>%
+    filter(!is.na(prediction_method))
+  colours <- colours_df$colour
+  names(colours) <- colours_df$prediction_method
+  
   # plot performance ====
   plot_settings <- list(
     scale_colour_manual(values = colours, limits = force),
@@ -138,19 +140,38 @@ all_variants <- list() ; for(variants_name in
                    gp = gpar(fontsize = 20)))
   
   # write output ====
-  { write_tibble(performance$summary, paste0(out_dir, "performance.tsv"))
+  { 
+    write_tibble(performance$summary, paste0(out_dir, "performance.tsv"))
     ggplot2::ggsave(paste0(out_dir, "performance.pdf"), out_plot, width = 15)
-    ggplot2::ggsave(paste0(out_dir, "performance.png"), out_plot, width = 15) }
+    ggplot2::ggsave(paste0(out_dir, "performance.png"), out_plot, width = 15) 
+  }
   
 }
 
 # triplets ====
 all_performance <- all_variants %>%
   bind_rows(.id = "variants") %>%
-  group_by(method) %>%
-  summarise(across(where(is.numeric), sum)) %>%
-  get_performance(variants_name = "all_variants") %>%
-  mutate(prediction_method = method)
+  group_by(prediction_method) %>%
+  summarise(across(where(is.numeric), sum))  %>%
+  rowwise() %>%
+  dplyr::mutate(p_value = fisher.test(matrix(c(TP,FP,FN,TN),2,2),alternative="greater")$p.value,
+                OR = fisher.test(matrix(c(TP,FP,FN,TN),2,2),alternative="greater")$estimate,
+                Precision = TP / (TP + FP),
+                Recall = TP / (TP + FN),
+                Sensitivity = TP / (TP + FN),
+                Specificity = TN / (TN + FP),
+                F_score = (Precision * Recall) / (Precision + Recall)) %>%
+  ungroup() %>%
+  mutate(method = prediction_method %>% gsub("\\_.*", "", .)) 
+
+# colours ====
+colours_df <- methods_metadata %>% 
+  left_join(all_performance %>% select(method, prediction_method)) %>%
+  filter(!is.na(prediction_method))
+colours <- colours_df$colour
+names(colours) <- colours_df$prediction_method
+
+# plot ====
 all_performance %>%
   mutate(fsc = F_score) %>%
   pivot_longer(cols = c(F_score, Precision, Recall),
@@ -164,9 +185,10 @@ all_performance %>%
              scales = "free", space = "free_y") +
   coord_flip() +
   theme(axis.title = element_blank()) +
-  plot_settings
-
-# write output
+  scale_fill_manual(values = colours, limits = force) +
+  theme_classic()
+  
+# write output ====
 write_tibble(all_performance, 
              paste0("output/all_variants/performance.tsv"))
 {

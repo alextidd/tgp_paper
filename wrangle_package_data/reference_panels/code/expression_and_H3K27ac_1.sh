@@ -8,8 +8,14 @@ module load python/2.7.13
 # create output dir
 mkdir output/H3K27ac/
 
-# compute signal
-multiBigwigSummary BED-file -b data/H3K27ac/*.big*ig --BED data/DHS.bed -o output/H3K27ac/H3K27ac_multiBigwigSummary.npz -p 20 --outRawCounts output/H3K27ac/H3K27ac_multiBigwigSummary.tmp
+# compute signal (only for celltypes in metadata)
+accessions=$(cat output/metadata.tsv | awk '$3=="H3K27ac" {print $6}' | tr '\n' '\|') ; accessions=${accessions%??}
+multiBigwigSummary BED-file \
+  -b $(find data/H3K27ac/*.big*ig | grep -E "$accessions") \
+  --BED data/DHS.bed \
+  -o output/H3K27ac/H3K27ac_multiBigwigSummary.npz \
+  -p 20 \
+  --outRawCounts output/H3K27ac/H3K27ac_multiBigwigSummary.tmp
 
 # extract header
 head -n1 output/H3K27ac/H3K27ac_multiBigwigSummary.tmp > output/H3K27ac/H3K27ac_multiBigwigSummary.header.tmp

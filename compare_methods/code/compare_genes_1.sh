@@ -98,6 +98,17 @@ traits_metadata=$base_dir/tgp_paper/wrangle_package_data/traits/output/metadata.
     awk -F'\t' -vOFS='\t' '$16 !~ "-" {print $4,$5,$18,$16,"MAGMA"}' |
     sort -u ;
     
+    # INQUISIT # (must convert levels (1,2,3) to scores (3,2,1))
+    if [ $variants == 'BC_Michailidou2017_FM' ] ; then
+      INQ_dir=/working/lab_georgiat/jonathB/PROJECTS/trench_lab/target_gene_prediction/data/precision_recall/predictions/INQUISIT/
+      ( 
+        cat $INQ_dir/inq3_predictions.txt | awk -F'\t' -vOFS='\t' 'NR>1{print "NA",$1,$2,"1","INQUISIT"}' ;
+        cat $INQ_dir/inq2_predictions.txt | awk -F'\t' -vOFS='\t' 'NR>1{print "NA",$1,$2,"2","INQUISIT"}' ; 
+        cat $INQ_dir/inq1_predictions.txt | awk -F'\t' -vOFS='\t' 'NR>1{print "NA",$1,$2,"3","INQUISIT"}' ;
+      ) | cat |
+      sort -u ;
+    fi
+    
   ) | cat > $out_dir/predictions.tsv
 
 done < <(sed 1d $traits_metadata) )

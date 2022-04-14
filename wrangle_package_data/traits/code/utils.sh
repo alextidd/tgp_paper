@@ -18,10 +18,10 @@ function sed_ichav () { cat $1 | sed 's/\tichav/\./g' | sed 's/\tCIMBA/\.CIMBA/g
 
 get_kgs () {
   trait=$1 ; kgs=$2
-  cat $kgs > $trait_kgs.tmp
+  cat $kgs > ${trait}_kgs.tmp
   (for trait_dir in output/${trait}_*/ ; do 
-    cat $trait_kgs.tmp > $trait_dir/known_genes.txt ; 
+    cat ${trait}_kgs.tmp > $trait_dir/known_genes.txt ; 
   done)
-  rm -f $trait_kgs.tmp
+  rm -f ${trait}_kgs.tmp
 }
 

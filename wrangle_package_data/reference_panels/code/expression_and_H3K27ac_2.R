@@ -69,7 +69,7 @@ expression_raw <- expression_raw %>%
 
 ##### H3K27ac #####
 # import H3K27ac matrix
-H3K27ac_raw <- read.delim("output/H3K27ac/H3K27ac_input_matrix.tsv.tmp") %>%
+H3K27ac_raw <- read.delim("output/H3K27ac/H3K27ac_input_matrix.tsv") %>%
   mutate(region = paste0(X..chr., ":", X.start., "-", X.end.)) %>%
   select(region, everything(), -X..chr., -X.start., -X.end.) %>% 
   column_to_rownames("region") %>% as.matrix
@@ -77,30 +77,34 @@ colnames(H3K27ac_raw) <- colnames(H3K27ac_raw) %>%
   gsub("X\\.", "", .) %>% gsub("\\..*", "", .)
 
 ##### POST-PROCESSING #####
-
 # create list, replace codes with names
 metadata <- read.delim("output/metadata.tsv", header = T) %>% as_tibble
 raw <- list(H3K27ac = H3K27ac_raw, expression = expression_raw)
-dims <- list() ; for(x in c("H3K27ac", "expression")){
-  dims[[x]] <- dimnames(raw[[x]])
-  dims[[x]][[2]] <- metadata %>%
+dims <- raw %>% names %>%
+  sapply(function(x){
+  d <- dimnames(raw[[x]])
+  d[[2]] <- metadata %>%
       filter(object == x) %>%
       {dplyr::left_join(dplyr::tibble(colname = colnames(raw[[x]])), ., by = "colname")} %>%
       dplyr::pull(celltype)
-}
+  return(d)
+}, USE.NAMES = T, simplify = F)
 
 # quantile normalise
-qn <- list() ; c("H3K27ac", "expression") %>%
+qn <- raw %>% names %>%
   sapply(function(x){
+    x_raw <- raw[[x]]
+    # ppC::normalize.quantiles() has improper NA handling, convert to 0
+    x_raw[is.na(x_raw)] <- 0   
     # qn
-    x_qn <- raw[[x]] %>% preprocessCore::normalize.quantiles(copy = T) 
-    x_qn[is.na(x_qn)] <- 0    
+    x_qn <- preprocessCore::normalize.quantiles(x_raw, copy = T) 
+    # x_qn <- limma::normalizeQuantiles(raw[[x]], ties = F)
     dimnames(x_qn) <- dims[[x]]
     return(x_qn)
-  }, simplify = F, USE.NAMES = T) -> qn
+}, USE.NAMES = T, simplify = F)
 
 # bin
-binned <- list() ; qn %>% names %>%
+binned <- qn %>% names %>%
   sapply(function(x){
     x_qn <- qn[[x]]
     # calculate signal scores, bin
@@ -113,8 +117,7 @@ binned <- list() ; qn %>% names %>%
           if(x == "H3K27ac")          dplyr::as_tibble(., rownames = "DHS") 
           else if(x == "expression")  dplyr::as_tibble(., rownames = "ensg")
       })
-  }, simplify = F, USE.NAMES = T
-  ) -> binned
+}, USE.NAMES = T, simplify = F)
 expression <- binned$expression 
 H3K27ac <- binned$H3K27ac 
 
