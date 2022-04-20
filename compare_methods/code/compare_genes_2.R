@@ -82,28 +82,22 @@ all_variants <- list() ; for(variants_name in
 
   # colours ====
   colours_df <- methods_metadata %>% 
-    left_join(performance$summary %>% select(method, prediction_method)) %>%
-    filter(!is.na(prediction_method))
+    right_join(performance$summary %>% select(method, prediction_method))
+  if(nrow(filter(colours_df, is.na(colour)))>0){stop(filter(colours_df, is.na(colour))$method, " does not have an assigned colour in the methods metadata!")}
   colours <- colours_df$colour
   names(colours) <- colours_df$prediction_method
+  
   
   # plot performance ====
   plot_settings <- list(
     scale_colour_manual(values = colours, limits = force),
     scale_fill_manual(values = colours, limits = force),
-    labs(x = paste0("recall (True = ", 
-                    unique(performance$summary$True), 
-                    ")")),
     theme_classic(),
     theme(
       title = element_text(size = 15),
       axis.title = element_text(size = 15),
       axis.text = element_text(size = 15),
       legend.position = "none"))
-  plot_subtitle <- paste0(
-    "Variants = ", variants_name,
-    "\nmax n known genes per CS = ", max_n_known_genes_per_CS, 
-    ", max distance = ", variant_to_gene_max_distance)
   
   PR_plot <- performance %>%
     map(~ filter(.x, prediction_type == "max")) %>% 
@@ -115,7 +109,11 @@ all_variants <- list() ; for(variants_name in
                                                recall != 1,
                                                precision != 0),
               alpha = 0.3) +
+    labs(x = paste0("recall (True = ", 
+                  unique(performance$summary$True), 
+                  ")")) +
     plot_settings
+  
   performance_plot <- performance$summary %>%
     mutate(fsc = F_score) %>%
     pivot_longer(cols = c(F_score, Precision, Recall),
@@ -135,8 +133,10 @@ all_variants <- list() ; for(variants_name in
     performance_plot,
     PR_plot,
     ncol = 2, nrow = 1,
-    top = textGrob(paste0("Method comparison (max score per CS)\n",
-                          plot_subtitle),
+    top = textGrob(paste0("Method comparison (max score per CS)",
+                          "\nVariants = ", variants_name,
+                          "\nmax n known genes per CS = ", max_n_known_genes_per_CS, 
+                          ", max distance = ", variant_to_gene_max_distance),
                    gp = gpar(fontsize = 20)))
   
   # write output ====

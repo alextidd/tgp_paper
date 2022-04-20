@@ -106,6 +106,8 @@ traits_metadata=$base_dir/tgp_paper/wrangle_package_data/traits/output/metadata.
         cat $INQ_dir/inq2_predictions.txt | awk -F'\t' -vOFS='\t' 'NR>1{print "NA",$1,$2,"2","INQUISIT"}' ; 
         cat $INQ_dir/inq1_predictions.txt | awk -F'\t' -vOFS='\t' 'NR>1{print "NA",$1,$2,"3","INQUISIT"}' ;
       ) | cat |
+      # replace ichav      
+      sed 's/ichav/\./g' |
       sort -u ;
     fi
     

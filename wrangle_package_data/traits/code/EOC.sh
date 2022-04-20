@@ -5,7 +5,7 @@
 
 # Jones2020 FM #
 mkdir output/EOC_Jones2020_FM/
-( echo "chrom\tstart\tend\tvariant\tcs" ;
+( echo -e "chrom\tstart\tend\tvariant\tCredibleSet" ;
   cat data/Jones2020/mmc2_ST1.tsv |
   awk -F'\t' -vOFS='\t' 'NR > 1 {print "chr"$8,$9-1,$9,$7,$2}' |
   sort -u ;
