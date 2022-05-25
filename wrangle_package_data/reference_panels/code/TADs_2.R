@@ -1,13 +1,11 @@
 setwd("/working/lab_jonathb/alexandT/tgp_paper/wrangle_package_data/reference_panels/") ; devtools::load_all("/working/lab_jonathb/alexandT/tgp")
-metadata <- read_tibble("/working/lab_jonathb/alexandT/tgp_paper/wrangle_package_data/reference_panels/output/metadata.tsv", header = T)
+TADs_metadata <- read_tibble("/working/lab_jonathb/alexandT/tgp_paper/wrangle_package_data/reference_panels/output/metadata.tsv", header = T) %>%
+  dplyr::filter(object == "TADs")
 
-TADs <- list() ; for(file in list.files("output/TADs/", pattern = "bed", full.names = T)){
-  celltype <- file %>% 
-    basename %>%
-    {dplyr::filter(metadata, file == ., object == "TADs")} %>%
-    dplyr::pull(celltype)
-  print(celltype)
-  TADs[[celltype]] <- import_BED(file)
+TADs <- list() ; for(ct in TADs_metadata$celltype){
+  print(ct)
+  file <- paste0("output/TADs/", ct, ".bed")
+  TADs[[ct]] <- import_BED(file)
 }
 
 # save

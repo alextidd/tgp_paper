@@ -11,16 +11,18 @@ score_col=79
 dbNSFPdata=/reference/data/dbNSFP/${dbNSFPv}/
 
 # missense ===
-awk -F'\t' -v ENSG_col=$ENSG_col -v score_col=$score_col \
-'$0 !~ "#" && $7 ~ /^rs/ && $score_col >= 0.2 && $8!="." { print "chr"$8,$9,$ENSG_col,$score_col }' OFS='\t' \
-${dbNSFPdata}/dbNSFP${dbNSFPv}_variant.chr* \
-> ${REVELOutDir}/missense_SNVs.tsv
+( echo -e "chrom\tposition\tensgs\tscore" ; 
+  awk -F'\t' -vOFS='\t' -v ENSG_col=$ENSG_col -v score_col=$score_col \
+  '$0 !~ "#" && $7 ~ /^rs/ && $score_col >= 0.2 && $8!="." { print "chr"$8,$9,$ENSG_col,$score_col }'  \
+  ${dbNSFPdata}/dbNSFP${dbNSFPv}_variant.chr* ; ) |
+cat > ${REVELOutDir}/missense_SNVs.tsv
 
 # nonsense ===
-awk -F'\t' -v ENSG_col=$ENSG_col \
-'$0 !~ "#" && $7 ~ /^rs/ && $6 == "X" && $8!="." { print "chr"$8,$9,$ENSG_col }' OFS='\t' \
-${dbNSFPdata}/dbNSFP${dbNSFPv}_variant.chr* \
-> ${REVELOutDir}/nonsense_SNVs.tsv
+( echo -e "chrom\tposition\tensgs" ; 
+  awk -F'\t' -vOFS='\t' -v ENSG_col=$ENSG_col \
+  '$0 !~ "#" && $7 ~ /^rs/ && $6 == "X" && $8!="." { print "chr"$8,$9,$ENSG_col }' \
+  ${dbNSFPdata}/dbNSFP${dbNSFPv}_variant.chr* ; ) |
+cat > ${REVELOutDir}/nonsense_SNVs.tsv
 
 # splicesite ===
 # DB = dbscSNV
@@ -34,23 +36,22 @@ dbscSNVdata=/reference/data/dbscSNV/1.1/
 dbSNP147=/working/lab_georgiat/jonathB/PROJECTS/general/snp_ids/data/link/snp147_byChr_alleles/
 
 # loop per chrom
-> ${REVELOutDir}/splicesite_SNVs.tsv
+echo -e "chrom\tposition\tensgs" > ${REVELOutDir}/splicesite_SNVs.tsv
 (for i in chr{1..22} chrX ; do
   echo $i
 
   # recommended adaboost and rf cutoffs = 0.6
-  awk -F'\t' '$17 >= 0.6 || $18 >= 0.6 { print $1"\t"$2"\t"$3"\t"$4"\t"$10"\t"$14"\t"$16 }' ${dbscSNVdata}/dbscSNV1.1.${i} |
+  awk -F'\t' -vOFS='\t' '$17 >= 0.6 || $18 >= 0.6 { print $1,$2,$3,$4,$10,$14,$16 }' ${dbscSNVdata}/dbscSNV1.1.${i} |
 
   # extract position from dbSNP so we can sort the SNPs from other mutations
-  awk -F'\t' 'NR==FNR{ a[$3]=$4FS$5FS$6 ; next }{ print "chr"$0"\t"a[$2] }' <( zcat ${dbSNP147}/snp147.alleles.${i}.gz ) - |
+  awk -F'\t' -vOFS='\t' 'NR==FNR{ a[$3]=$4FS$5FS$6 ; next }{ print "chr"$0,a[$2] }' <( zcat ${dbSNP147}/snp147.alleles.${i}.gz ) - |
 
   # match alleles
-  awk -F'\t' '$3==$9 && $4==$10 && NR>1 { print $1"\t"$2"\t"$6 }'  |
+  awk -F'\t' -vOFS='\t' '$3==$9 && $4==$10 && NR>1 { print $1,$2,$6 }'  |
 
   # extract ENSGs
   perl -pe 's/\(.*?\)//g' \
   >> ${REVELOutDir}/splicesite_SNVs.tsv
-
 done)
 
 # fix ENSGs column

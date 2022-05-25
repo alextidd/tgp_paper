@@ -2,16 +2,17 @@ wkdir <- "/working/lab_jonathb/alexandT/tgp_paper/wrangle_package_data/reference
 setwd(wkdir) 
 library(idr2d)
 devtools::load_all("/working/lab_jonathb/alexandT/tgp/")
-HiChIPDir <- "output/HiChIP/"
-replicatesDir <- paste0(HiChIPDir, "replicates/")
-byChrDir <- paste0(HiChIPDir, "by_chr/")
-preQCDir <- paste0(HiChIPDir, "pre_QC/")
-postQCDir <- paste0(HiChIPDir, "post_QC/") ; dir.create(postQCDir)
+HiChIP_dir <- "output/HiChIP/"
+replicates_dir <- paste0(HiChIP_dir, "replicates/")
+byChr_dir <- paste0(HiChIP_dir, "by_chr/")
+preQC_dir <- paste0(HiChIP_dir, "pre_QC/")
+postQC_dir <- paste0(HiChIP_dir, "post_QC/") ; dir.create(postQC_dir)
 interaction_max_distance = 2e6
-metadata <- read_tibble("/working/lab_jonathb/alexandT/tgp_paper/wrangle_package_data/reference_panels/output/metadata.tsv", header = T)
+HiChIP_metadata <- read_tibble("/working/lab_jonathb/alexandT/tgp_paper/wrangle_package_data/reference_panels/output/metadata.tsv", header = T) %>% 
+  dplyr::filter(object == "HiChIP")
 
 # Dealing with replicates ====
-replicate_prefixes <- list.files(replicatesDir, pattern = "replicate.*bedpe") %>% sub("replicate.*", "", .) %>% unique
+replicate_prefixes <- list.files(replicates_dir, pattern = "replicate.*bedpe") %>% sub("replicate.*", "", .) %>% unique
 
 # # install (run on hpcapp01 head node)
 # if (!requireNamespace("remotes", quietly = TRUE)) { install.packages("remotes") }
@@ -21,7 +22,7 @@ replicate_prefixes <- list.files(replicatesDir, pattern = "replicate.*bedpe") %>
 if(length(replicate_prefixes)>0){
   for(rp in replicate_prefixes){
     cat(rp, "\n")
-    files <- list.files(replicatesDir, pattern = rp, full.names = T)
+    files <- list.files(replicates_dir, pattern = rp, full.names = T)
     rep1_df <- read.delim(files[1], header = F)
     rep2_df <- read.delim(files[2], header = F)
     idr_results <- estimate_idr2d(rep1_df, rep2_df, value_transformation = "identity")
@@ -36,37 +37,27 @@ if(length(replicate_prefixes)>0){
                        value = (-log10(idr)/max(-log10(idr))))
     # write
     write.table(out,
-                paste0(byChrDir,
+                paste0(byChr_dir,
                        rp %>% sub("\\_$", "", .),
                        ".bedpe"),
                 quote = F, sep = "\t", row.names = F, col.names = F)
   }
   # merge per-chromosome Corces files back together
-  system(paste(paste0("HiChIPDir=", wkdir, "output/HiChIP/"),
-               "celltypes=$(ls $HiChIPDir/by_chr/Corces*.bedpe | sed 's/.*Corces2020\\_//g' | sed 's/\\_.*//g' | sort -u)",
+  system(paste(paste0("HiChIP_dir=", wkdir, "output/HiChIP/"),
+               "celltypes=$(ls $HiChIP_dir/by_chr/Corces*.bedpe | sed 's/.*Corces2020\\_//g' | sed 's/\\_.*//g' | sort -u)",
                "(for celltype in ${celltypes[@]} ; do echo $celltype",
-               "outfile=$HiChIPDir/pre_QC/Corces2020_${celltype}_HiChIP.bedpe ; > $outfile",
-               "(for chrfile in $HiChIPDir/by_chr/*${celltype}* ; do cat $chrfile >> $outfile ; done)",
+               "outfile=$HiChIP_dir/pre_QC/Corces2020_${celltype}_HiChIP.bedpe ; > $outfile",
+               "(for chrfile in $HiChIP_dir/by_chr/*${celltype}* ; do cat $chrfile >> $outfile ; done)",
                "done) ; ", sep = " ; "))
 }
 
 # QC
 
 # files in metadata only
-HiChIP_metadata <- metadata %>% dplyr::filter(object == "HiChIP")
-files <- list.files(preQCDir, pattern = "bedpe")
-if(length(setdiff(files, HiChIP_metadata$file))>0){
-  stop("Files in pre_QC not found in HiChIP metadata:\n", 
-       paste(setdiff(files, HiChIP_metadata$file), collapse = "\n"))
-}
-
 HiChIP <- list() 
-for(file in files){ 
-  acc <- basename(file)
-  info <- HiChIP_metadata %>% dplyr::filter(file == acc)
-  df <- import_BEDPE_to_List(
-    paste0(preQCDir, file), metadata_cols = "score"
-  ) %>%
+for(ct in HiChIP_metadata$celltype){ 
+  file <- paste0(preQC_dir, ct, ".bedpe")
+  df <- import_BEDPE_to_List(file, metadata_cols = "score") %>%
     purrr::map(~ .x %>%
                  # shift starts +1 so that bins are all mutually exclusive
                  dplyr::mutate(start = start + 1) %>%
@@ -147,14 +138,14 @@ for(file in files){
   df %>%
     purrr::reduce(dplyr::inner_join, by = c("InteractionID", "score")) %>%
     dplyr::select(chrom.x:end.x, chrom.y:end.y, score) %>%
-    write.table(file = paste0(postQCDir, file),
+    write.table(file = paste0(postQC_dir, file),
                 quote = F,
                 row.names = F,
                 col.names = F,
                 sep = "\t")
   
   # save to HiChIP object
-  HiChIP[[info$celltype]] <- df
+  HiChIP[[ct]] <- df
 }
 
 # save

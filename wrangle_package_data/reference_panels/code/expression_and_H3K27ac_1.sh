@@ -9,9 +9,9 @@ module load python/2.7.13
 mkdir output/H3K27ac/
 
 # compute signal (only for celltypes in metadata)
-accessions=$(cat output/metadata.tsv | awk '$3=="H3K27ac" {print $6}' | tr '\n' '\|') ; accessions=${accessions%??}
+accessions=$(cat output/metadata.tsv | awk '$3=="H3K27ac" {print $5}' | tr '\n' '\|') ; accessions=${accessions%?}
 multiBigwigSummary BED-file \
-  -b $(find data/H3K27ac/*.big*ig | grep -E "$accessions") \
+  -b $(find data/H3K27ac/*.bigWig | grep -E "$accessions") \
   --BED data/DHS.bed \
   -o output/H3K27ac/H3K27ac_multiBigwigSummary.npz \
   -p 20 \

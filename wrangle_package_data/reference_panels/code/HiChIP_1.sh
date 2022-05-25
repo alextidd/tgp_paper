@@ -9,6 +9,8 @@
 # -> Score = -log10(Q-Value_Bias)
 
 module load R/4.0.2
+get_cellline() { cellline=${celltype#*.} ; cellline=${cellline%.*} ; }
+
 WKDIR=/working/lab_jonathb/alexandT/tgp_paper/wrangle_package_data/reference_panels/ ; cd $WKDIR
 data_dir=$WKDIR/data/HiChIP/ ; mkdir $data_dir
 out_dir=$WKDIR/output/HiChIP/ ; mkdir -p $out_dir/pre_QC
@@ -17,16 +19,16 @@ echo "Trench ===================================================================
 
 # FitHiChIP to bedpe
 Trench_FitHiChIP_dir=/working/lab_georgiat/jonathB/PROJECTS/trench_lab/DoD_screen_GenomicAssays/integrate_CCVs_HiChIP/data/collect_data/HiChIP/FitHiChIP/
-Rscript code/FitHiChIP_to_bedpe.R \
-  --in.FitHiChIP $Trench_FitHiChIP_dir/DoDcells/B80T5.FitHiChIP.Peak2ALL.Q0.01.bed \
-  --out.bedpe $out_dir/pre_QC/Trench_HMEC_HiChIP.bedpe
-for celltype in MCF7 T47D ; do echo $celltype
+(for celltype in BRST.HMEC BRST.MCF7.CNCR BRST.T47D.CNCR ; do echo $celltype
+  get_cellline
+  if [[ "$cellline" == "HMEC" ]] ; then cellline=B80T5 ; fi
+  file=$(ls $Trench_FitHiChIP_dir/*cells/$cellline.FitHiChIP.Peak2ALL.Q0.01.bed)
   Rscript code/FitHiChIP_to_bedpe.R \
-    --in.FitHiChIP $Trench_FitHiChIP_dir/Tumcells/$celltype.FitHiChIP.Peak2ALL.Q0.01.bed \
-    --out.bedpe $out_dir/pre_QC/Trench_${celltype}_HiChIP.bedpe
-done
+  --in.FitHiChIP $file \
+  --out.bedpe $out_dir/pre_QC/$celltype.bedpe
+done)
 
-echo "Shi 2021 ====================================================================="
+echo "Shi2021 ====================================================================="
 mkdir $data_dir/Shi2021
 
 # # wget on hpcapp01
@@ -36,15 +38,16 @@ mkdir $data_dir/Shi2021
 # -P /working/lab_jonathb/alexandT/tgp_paper/wrangle_package_data/reference_panels/data/HiChIP/Shi2021/
 
 # reformat WashU longrange
-for file in $data_dir/Shi2021/GSM*WashU.bed.gz ; do
-  celltype=$(basename $file) ; celltype=${celltype#*_} ; celltype=${celltype%%_*} ; celltype=${celltype^^} ; echo $celltype
+for celltype in SKIN.HACAT BLD.MYLA.CNCR ; do echo $celltype
+  get_cellline
+  file=$(find $data_dir/Shi2021/ -iname GSM*$cellline*WashU.bed.gz)
   zcat $file |
   cut -f1-4 |
   sed 's/:\|-\|,/\t/g' \
-  > $out_dir/pre_QC/Shi2021_${celltype}_HiChIP.bedpe
+  > $out_dir/pre_QC/$celltype.bedpe
 done
 
-echo "Chen 2021 ====================================================================="
+echo "Chen2021 ====================================================================="
 mkdir $data_dir/Chen2021
 
 # https://www.ncbi.nlm.nih.gov/geo/download/?acc=GSE173699&format=file
@@ -55,11 +58,10 @@ for file in $data_dir/Chen2021/GSM*.gz ; do
   zcat $file |
   sed 's/\s/\t/g' |
   cut -f1-6,8 \
-  > ${out_dir}/pre_QC/Chen2021_${filename}
+  > $out_dir/pre_QC/Chen2021_$filename
 done
 
 # merge duplicates and sum reads
-mergefile=$out_dir/pre_QC/Chen2021_HCT116_HiChIP.bedpe
 join \
     -j 1 -t $'\t' -e 0 -a 1 -a 2 \
     -o 0,1.8,2.8 \
@@ -72,10 +74,10 @@ join \
 sed 's/-/\t/g' |
 awk '{ for(i=7;i<=NF;i++) t+=$i ; print $0"\t"t ; t=0}' |
 cut -f1-6,9 \
-> ${mergefile}
+> $out_dir/pre_QC/CLN.HCT116.CNCR.bedpe
 rm -f $out_dir/pre_QC/Chen2021_GSM*
 
-echo "Giambartolomei 2021 ====================================================================="
+echo "Giambartolomei2021 ====================================================================="
 mkdir $data_dir/Giambartolomei2021
 
 # # wget on hpcapp01
@@ -86,9 +88,9 @@ mkdir $data_dir/Giambartolomei2021
 zcat $data_dir/Giambartolomei2021/HiChIP_LNCaP.gz |
 sed 's/,\|:\|-/\t/g' |
 awk '{FS=OFS="\t"}{print $1,$2-2499,$3+2499,$4,$5-2499,$6+2499,$7}' \
-> $out_dir/pre_QC/Giambartolomei2021_LNCAP_HiChIP.bedpe
+> $out_dir/pre_QC/PR.LNCAP.CNCR.bedpe
 
-echo "Liu 2021 ====================================================================="
+echo "Liu2021 ====================================================================="
 mkdir $data_dir/Liu2021
 
 # # wget on hpcapp01
@@ -98,9 +100,9 @@ mkdir $data_dir/Liu2021
 
 zcat $data_dir/Liu2021/GSM5066590_LK2_HiChIP_H3K27ac.interactions.all.mango.txt.gz | 
 cut -f1-6,8 \
-> $out_dir/pre_QC/Liu2021_LK2_HiChIP.bedpe
+> $out_dir/pre_QC/LNG.LK2.CNCR.bedpe
 
-echo "Ma 2021 ====================================================================="
+echo "Ma2021 ====================================================================="
 mkdir $data_dir/Ma2021
 
 # # wget on hpcapp01
@@ -110,16 +112,15 @@ mkdir $data_dir/Ma2021
 # -P /working/lab_jonathb/alexandT/tgp_paper/wrangle_package_data/reference_panels/data/HiChIP/Ma2021/
 
 # reformat FitHiChIP
-for file in $data_dir/Ma2021/*bed.gz ; do
-  celltype=${file%_merge.bed.gz} ; celltype=${celltype##*_} ; CELLTYPE=${celltype^^}
-  outfile=$out_dir/pre_QC/Ma2021_${CELLTYPE}_HiChIP.bedpe
-
+for celltype in VAS.AOSMC VAS.HAEC ; do echo $celltype
+  get_cellline  
+  file=$(find $data_dir/Ma2021/ -iname *$cellline*.bed.gz)
   Rscript code/FitHiChIP_to_bedpe.R \
   --in.FitHiChIP $file \
-  --out.bedpe $outfile
+  --out.bedpe $out_dir/pre_QC/$celltype.bedpe
 done
 
-echo "Bhattacharyya 2019 ====================================================================="
+echo "Bhattacharyya2019 ====================================================================="
 mkdir $data_dir/Bhattacharyya2019/
 # WashU epigenome browser sessions: (http://epigenomegateway.wustl.edu/browser/)
 # GM12878 H3K27ac loop callsSession ID: b491c3d0-65f7-11e9-b334-5ff263937318
@@ -128,10 +129,11 @@ mkdir $data_dir/Bhattacharyya2019/
 # https://zenodo.org/record/3255048/files/FitHiChIP_Source_Data_June2019.zip?download=1
 # (cd $data_dir/Bhattacharyya2019/ ; unzip FitHiChIP_Source_Data_June2019.zip)
 
-(for celltype in GM12878 K562 CD4 ; do
-  echo $celltype
-  infile=$(ls $data_dir/Bhattacharyya2019/FitHiChIP_Source_Data_June2019/${celltype}*/H3K27*ac/Combined_Replicates_HIChIP_Loops/Table_*.xlsx)
-  outfile=${out_dir}/pre_QC/Bhattacharyya2019_${celltype}_HiChIP
+(for celltype in BLD.GM12878 BLD.K562.CNCR BLD.CD4.TCELL ; do echo $celltype
+  get_cellline
+  
+  infile=$(ls $data_dir/Bhattacharyya2019/FitHiChIP_Source_Data_June2019/$cellline*/H3K27*ac/Combined_Replicates_HIChIP_Loops/Table_*.xlsx)
+  outfile=$out_dir/pre_QC/$celltype
   
   # xlsx to tsv
   libreoffice --headless --convert-to csv --outdir $out_dir/pre_QC/ $infile 
@@ -152,18 +154,45 @@ mkdir $data_dir/Bhattacharyya2019/
   rm -f $outfile.FitHiChIP
 done)
 
-echo "Omara 2020 ====================================================================="
-mkdir $data_dir/Omara2020/
+echo "Quinn2021 ====================================================================="
+mkdir $data_dir/Quinn2021/
 
 cp \
   /working/lab_jonathb/jonathB/projects/jb_lab/target_gene_prediction/epigenomic_data/HiChIP/TOV112D/FitHiChIP/output/FitHiChIP_Peak2ALL_b5000_L5000_U2000000/P2PBckgr_0/Coverage_Bias/FitHiC_BiasCorr/FitHiChIP.interactions_FitHiC_Q0.01.bed \
-  $data_dir/Omara2020/
+  $data_dir/Quinn2021/
 
 # reformat FitHiChIP
 Rscript code/FitHiChIP_to_bedpe.R \
---in.FitHiChIP $data_dir/Omara2020/FitHiChIP.interactions_FitHiC_Q0.01.bed \
---out.bedpe $out_dir/pre_QC/Omara2020_TOV112D_HiChIP.bedpe
+--in.FitHiChIP $data_dir/Quinn2021/FitHiChIP.interactions_FitHiC_Q0.01.bed \
+--out.bedpe $out_dir/pre_QC/OVRY.TOV112D.CNCR.bedpe
 
+echo "Omara2019 ====================================================================="
+mkdir $data_dir/Omara2019/
+
+cp \
+  /working/lab_jonathb/jonathB/projects/jb_lab/target_gene_prediction/epigenomic_data/epi_data_formatting/output/HiChIP/Ishikawa/FitHiChIP/FitHiChIP_Peak2ALL_b5000_L5000_U2000000/P2PBckgr_0/Coverage_Bias/FitHiC_BiasCorr/FitHiChIP.interactions_FitHiC_Q0.01.bed \
+  $data_dir/Omara2019/
+
+# reformat FitHiChIP
+Rscript code/FitHiChIP_to_bedpe.R \
+  --in.FitHiChIP $data_dir/Omara2019/FitHiChIP.interactions_FitHiC_Q0.01.bed \
+  --out.bedpe $out_dir/pre_QC/ENDM.ISHIKAWA.CNCR.bedpe
+
+echo "Chandra2021 ====================================================================="
+mkdir $data_dir/Chandra2021/
+
+# > $data_dir/Chandra2021/41588_2020_745_MOESM3_ESM_ST3.tsv
+# https://static-content.springer.com/esm/art%3A10.1038%2Fs41588-020-00745-3/MediaObjects/41588_2020_745_MOESM3_ESM.xlsx
+# manually copied from Supplementary Table 3 - Summary of promoter interactions (H3K27ac HiChIP) (F4:K,N)
+
+( echo -e "chr1\ts1\te1\tchr2\ts2\te2\tQ.Value_Bias" ;
+  sed 1d $data_dir/Chandra2021/41588_2020_745_MOESM3_ESM_ST3.tsv ; ) |
+cat > $data_dir/Chandra2021/41588_2020_745_MOESM3_ESM_ST3.FitHiChIP
+
+# reformat FitHiChIP
+Rscript code/FitHiChIP_to_bedpe.R \
+  --in.FitHiChIP $data_dir/Chandra2021/41588_2020_745_MOESM3_ESM_ST3.FitHiChIP \
+  --out.bedpe $out_dir/pre_QC/BLD.MONO.bedpe
 
 echo "Quality control ====================================================================="
 Rscript code/HiChIP_2.R

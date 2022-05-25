@@ -1,7 +1,4 @@
 #!/usr/bin/Rscript
-setwd("/working/lab_jonathb/alexandT/tgp_paper/wrangle_package_data/reference_panels/")
-dir.create("output/expression/", showWarnings = F)
-dir.create("output/H3K27ac/", showWarnings = F)
 
 # load libraries
 suppressPackageStartupMessages(library(dplyr))
@@ -9,7 +6,14 @@ suppressPackageStartupMessages(library(tidyr))
 suppressPackageStartupMessages(library(purrr))
 suppressPackageStartupMessages(library(tibble))
 
+# inputs
+setwd("/working/lab_jonathb/alexandT/tgp_paper/wrangle_package_data/reference_panels/")
+dir.create("output/expression/", showWarnings = F)
+dir.create("output/H3K27ac/", showWarnings = F)
+metadata <- read.delim("output/metadata.tsv", header = T) %>% as_tibble
+
 # functions
+values_sum_fn <- function(x){sum(x, na.rm = T)}
 specificity_score <- function(x){
   norm_vec <- function(x) sqrt(sum(x^2))
   # function to calculate cell type specificity scores for a vector of values x
@@ -43,23 +47,25 @@ TSSs <- read.delim(gzfile("data/GENCODE/gencode.v34lift37.basic.tss.bed.gz"),
 names(TSSs) <- c("chrom", "start", "end", "ensg", "symbol", "enst")
 
 # import expression data, combine and tidy
-expression_files <- dir("data/expression/", pattern = ".tsv", full.names = T) 
+expression_files <- paste0("data/expression/",
+                           filter(metadata, object == "expression")$accession,
+                           ".tsv")
 expression_raw <- expression_files %>%
   map(~ .x %>% read.delim %>% as_tibble %>% 
         rename(gene_id = 1, TPM = 2))
-names(expression_raw) <- expression_files %>% basename %>% tools::file_path_sans_ext()
+names(expression_raw) <- filter(metadata, object == "expression")$celltype
 expression_raw <- expression_raw %>% 
   # bind rows
-  bind_rows(.id = "acc") %>%
+  bind_rows(.id = "celltype") %>%
   # get only ensgs, remove ensg extensions  
   filter(grepl("ENSG", gene_id)) %>%
-  transmute(acc, ensg = gene_id %>% gsub("\\.[0-9]*", "", .), TPM) %>%
+  transmute(celltype, ensg = gene_id %>% gsub("\\.[0-9]*", "", .), TPM) %>%
   distinct %>%
   # spread each gene, sum duplicate gene entries
-  spread(acc, TPM) %>%
-  mutate(across(where(is.numeric), ~ replace_na(.x, 0))) %>%
-  group_by(ensg) %>%
-  summarise(across(everything(), sum)) %>%
+  pivot_wider(id_cols = "ensg", 
+              names_from = celltype, values_from = TPM,
+              values_fill = 0,
+              values_fn = values_sum_fn) %>%
   # remove gene rows where all values are 0
   filter(rowSums(across(where(is.numeric))) > 0) %>%
   column_to_rownames("ensg") %>%
@@ -73,22 +79,15 @@ H3K27ac_raw <- read.delim("output/H3K27ac/H3K27ac_input_matrix.tsv") %>%
   mutate(region = paste0(X..chr., ":", X.start., "-", X.end.)) %>%
   select(region, everything(), -X..chr., -X.start., -X.end.) %>% 
   column_to_rownames("region") %>% as.matrix
-colnames(H3K27ac_raw) <- colnames(H3K27ac_raw) %>%
-  gsub("X\\.", "", .) %>% gsub("\\..*", "", .)
+acc_to_ct <- tibble(accession = colnames(H3K27ac_raw) %>% gsub("X\\.", "", .) %>% gsub("\\..*", "", .)) %>%
+  full_join(metadata %>% filter(object == "H3K27ac")) 
+if(any(is.na(acc_to_ct$celltype))){stop(filter(acc_to_ct, is.na(celltype))$accession, " does not have a metadata entry!")}
+colnames(H3K27ac_raw) <- acc_to_ct$celltype
 
 ##### POST-PROCESSING #####
 # create list, replace codes with names
-metadata <- read.delim("output/metadata.tsv", header = T) %>% as_tibble
 raw <- list(H3K27ac = H3K27ac_raw, expression = expression_raw)
-dims <- raw %>% names %>%
-  sapply(function(x){
-  d <- dimnames(raw[[x]])
-  d[[2]] <- metadata %>%
-      filter(object == x) %>%
-      {dplyr::left_join(dplyr::tibble(colname = colnames(raw[[x]])), ., by = "colname")} %>%
-      dplyr::pull(celltype)
-  return(d)
-}, USE.NAMES = T, simplify = F)
+dims <- raw %>% map(dimnames) 
 
 # quantile normalise
 qn <- raw %>% names %>%

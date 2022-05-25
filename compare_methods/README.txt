@@ -2,11 +2,9 @@
 
 output/
 -$TRAIT/            # (BC, IBD, PrCa) = trait-specific predictions 
---$CELLTYPES/       # (enriched_tissues, ${CELLTYPE}_celltype, all_celltypes) = grouping of celltypes from which predictions have been made 
----predictions.tsv  # all predictions by all methods (cols: cs, symbol, ...methods' scores...)
----performance.pdf  # PR, AUPRC
----performance.tsv  # Precision-Recall and summary statistics
----$METHOD/         # (tgp, ABC, EpiMAP, L2G) = intermediate, trait-and-celltypes-specific processing files
+--predictions.tsv  # all predictions by all methods (cols: variant, cs, symbol, score, method)
+--performance.pdf  # PR, AUPRC
+--performance.tsv  # Precision-Recall and summary statistics
 
 # $CELLTYPES
 This denotes the group of celltypes from which predictions have been made, which must be consistent across methods for a comparison. 
