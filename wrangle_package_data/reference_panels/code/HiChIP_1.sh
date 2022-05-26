@@ -98,8 +98,10 @@ mkdir $data_dir/Liu2021
 # https://ftp.ncbi.nlm.nih.gov/geo/samples/GSM5066nnn/GSM5066590/suppl/GSM5066590_LK2_HiChIP_H3K27ac.interactions.all.mango.txt.gz \
 # -P /working/lab_jonathb/alexandT/tgp_paper/wrangle_package_data/reference_panels/data/HiChIP/Liu2021/
 
-zcat $data_dir/Liu2021/GSM5066590_LK2_HiChIP_H3K27ac.interactions.all.mango.txt.gz | 
-cut -f1-6,8 \
+# mango cols: (c1 s1 e1 c2 s2 e2 PETs FDR)
+# filter to significant interactions (FDR < 0.05) and -log10(FDR) to get loop score
+zcat $data_dir/Liu2021/GSM5066590_LK2_HiChIP_H3K27ac.interactions.all.mango.txt.gz |
+awk -F'\t' -vOFS='\t' '$8 + 0 < 0.05 {neglog10p= -log($8+0)/log(10) ; print $1,$2,$3,$4,$5,$6,neglog10p}' \
 > $out_dir/pre_QC/LNG.LK2.CNCR.bedpe
 
 echo "Ma2021 ====================================================================="
@@ -113,7 +115,7 @@ mkdir $data_dir/Ma2021
 
 # reformat FitHiChIP
 for celltype in VAS.AOSMC VAS.HAEC ; do echo $celltype
-  get_cellline  
+  get_cellline
   file=$(find $data_dir/Ma2021/ -iname *$cellline*.bed.gz)
   Rscript code/FitHiChIP_to_bedpe.R \
   --in.FitHiChIP $file \
@@ -131,22 +133,23 @@ mkdir $data_dir/Bhattacharyya2019/
 
 (for celltype in BLD.GM12878 BLD.K562.CNCR BLD.CD4.TCELL ; do echo $celltype
   get_cellline
-  
+
   infile=$(ls $data_dir/Bhattacharyya2019/FitHiChIP_Source_Data_June2019/$cellline*/H3K27*ac/Combined_Replicates_HIChIP_Loops/Table_*.xlsx)
   outfile=$out_dir/pre_QC/$celltype
-  
+  if [[ celltype == 'BLD.CD4.TCELL' ]] ; then outfile=$out_dir/pre_QC/BLD.CD4T ; fi
+
   # xlsx to tsv
-  libreoffice --headless --convert-to csv --outdir $out_dir/pre_QC/ $infile 
-  
+  libreoffice --headless --convert-to csv --outdir $out_dir/pre_QC/ $infile
+
   # tsv to FitHiChIP
-  ( echo -e "chr1\ts1\te1\tchr2\ts2\te2\tQ-Value_Bias" ;  
+  ( echo -e "chr1\ts1\te1\tchr2\ts2\te2\tQ-Value_Bias" ;
     tac $out_dir/pre_QC/Table_*.csv |
     awk '/Chromosome/ {exit} 1' |
     tac |
-    awk -F, -vOFS='\t' '{print $1,$2,$3,$1,$4,$5,$14}' 
+    awk -F, -vOFS='\t' '{print $1,$2,$3,$1,$4,$5,$14}'
   ) | cat > $outfile.FitHiChIP
   rm -f $out_dir/pre_QC/Table_*.csv
-  
+
   # FitHiChIP to BEDPE
   Rscript code/FitHiChIP_to_bedpe.R \
   --in.FitHiChIP $outfile.FitHiChIP \

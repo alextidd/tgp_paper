@@ -127,11 +127,20 @@ variants_bed=$traits_dir/output/$variants/variants.bed
   # awk '{print $0"\tEpiMAP"}' |
   # sort -u ;
   #
-  # # EpiMAP GWAS enrichments #
-  # zcat data/EpiMAP/gwas_resources/all_gwas_SNP_links.tsv.gz |
-  # awk -F'\t' -vOFS='\t' -v uid_PMID="$PMID - " \
-  # '$13~uid_PMID && $7 != "NA" && $4 < 2500 {print $1,$2-1,$2,"NA",$6,$7,"EpiMAP_enriched"}' |
-  # sort -u ;
+  # EpiMAP GWAS enrichments #
+  PMID=29059683
+  zcat data/EpiMAP/gwas_resources/all_gwas_SNP_links.tsv.gz |
+  awk -F'\t' -vOFS='\t' -v uid_PMID="$PMID - " \
+  '$13 ~ uid_PMID && $7 != "NA" && $4 < 2500 \
+  { print $1, int(($2)/10000) * 10000 + 1, int(($2)/10000) * 10000 + 10000, $0 }' |
+  bedtools intersect -a - -b $variants_bed |
+    #print $1,$2-1,$2,"NA",$6,$7,"EpiMAP_enriched"}' |
+  sort -u ;
+  
+  # get enriched tissues
+  zcat data/EpiMAP/gwas_resources/all_enrichment_summaries_alone.tsv.gz |
+  awk -F'\t' -vOFS='\t' -v PMID=$PMID '$1 == PMID {print $5"\t"$6}' |
+  
 
   >&2 echo "> cS2G_found_variants"
   # liftover

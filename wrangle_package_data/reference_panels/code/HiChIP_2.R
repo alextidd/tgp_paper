@@ -1,14 +1,13 @@
-wkdir <- "/working/lab_jonathb/alexandT/tgp_paper/wrangle_package_data/reference_panels/"
-setwd(wkdir) 
+wkdir <- "/working/lab_jonathb/alexandT/tgp_paper/wrangle_package_data/reference_panels/" ; setwd(wkdir) 
 library(idr2d)
 devtools::load_all("/working/lab_jonathb/alexandT/tgp/")
 HiChIP_dir <- "output/HiChIP/"
 replicates_dir <- paste0(HiChIP_dir, "replicates/")
 byChr_dir <- paste0(HiChIP_dir, "by_chr/")
 preQC_dir <- paste0(HiChIP_dir, "pre_QC/")
-postQC_dir <- paste0(HiChIP_dir, "post_QC/") ; dir.create(postQC_dir)
+postQC_dir <- paste0(HiChIP_dir, "post_QC/") ; dir.create(postQC_dir, showWarnings = F)
 interaction_max_distance = 2e6
-HiChIP_metadata <- read_tibble("/working/lab_jonathb/alexandT/tgp_paper/wrangle_package_data/reference_panels/output/metadata.tsv", header = T) %>% 
+HiChIP_metadata <- read_tibble("output/metadata.tsv", header = T) %>% 
   dplyr::filter(object == "HiChIP")
 
 # Dealing with replicates ====
@@ -126,19 +125,19 @@ for(ct in HiChIP_metadata$celltype){
         preprocessCore::normalize.quantiles() %>%
         tibble::as_tibble() %>%
         dplyr::rename(score = V1) %>%
-        dplyr::bind_cols(x %>% dplyr::select(-score), .) %>%
-        # split into deciles, unless only one score (binary loops)
-        dplyr::mutate(score = dplyr::case_when(
-          dplyr::n_distinct(x$score) > 1 ~ dplyr::ntile(score, 10)/10,
-          TRUE ~ 1)
-          )
+        dplyr::bind_cols(x %>% dplyr::select(-score), .) # %>%
+        # # split into deciles, unless only one score (binary loops)
+        # dplyr::mutate(score = dplyr::case_when(
+        #   dplyr::n_distinct(x$score) > 1 ~ dplyr::ntile(score, 10)/10,
+        #   TRUE ~ 1)
+        #   )
     })
   
   # write post-QC file
   df %>%
     purrr::reduce(dplyr::inner_join, by = c("InteractionID", "score")) %>%
     dplyr::select(chrom.x:end.x, chrom.y:end.y, score) %>%
-    write.table(file = paste0(postQC_dir, file),
+    write.table(file = paste0(postQC_dir, ct, ".bedpe"),
                 quote = F,
                 row.names = F,
                 col.names = F,

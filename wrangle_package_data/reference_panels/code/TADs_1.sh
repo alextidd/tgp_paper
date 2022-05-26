@@ -54,23 +54,23 @@ cut -f3,5,6 |
 bedtools merge \
 > $out_dir/BRST.MCF7.CNCR.bed
 
-echo "Smith2021 ====================================================================="
-mkdir $data_dir/Smith2021/
+echo "Du2021 ====================================================================="
+mkdir $data_dir/Du2021/
 # # hpcapp01 head node:
 # wget \
 # https://ftp.ncbi.nlm.nih.gov/geo/series/GSE158nnn/GSE158007/suppl/GSE158007_HCT116_40kb_TADs.bed.gz \
 # -P /working/lab_jonathb/alexandT/tgp_paper/wrange_package_data/data/TADs/Smith2021/
-zcat $data_dir/Smith2021/GSE158007_HCT116_40kb_TADs.bed.gz |
+zcat $data_dir/Du2021/GSE158007_HCT116_40kb_TADs.bed.gz |
 bedtools merge \
 > $out_dir/CLN.HCT116.CNCR.bed
 
 echo "Javierre2016 ====================================================================="
 mkdir $data_dir/Javierre2016/
 # https://osf.io/u8tzp/ > $data_dir/Javierre2016/TAD_definitions.tar.gz
-tar xvzf $data_dir/Javierre2016/TAD_definitions.tar.gz -C $data_dir/Javierre2016/
+# tar xvzf $data_dir/Javierre2016/TAD_definitions.tar.gz -C $data_dir/Javierre2016/
 cat $data_dir/Javierre2016/TADs_nCD4_mean_merged.bed |
 awk -F'\t' -vOFS='\'t 'NR>1 {print "chr"$1,$2,$3}' \
-> $out_dir/BLD.CD4.TCELL.bed
+> $out_dir/BLD.CD4T.bed
 
 echo "Schmitt2016 ====================================================================="
 mkdir $data_dir/Schmitt2016/
@@ -89,11 +89,26 @@ liftOver \
 cat $data_dir/LaGreca2022/hg19.elife-66034-fig6-data1-v2.txt \
 > $out_dir/ENDM.ISHIKAWA.CNCR.bed
 
+echo "ENCODE ====================================================================="
+mkdir $data_dir/ENCODE/
+# # hpcapp01 head node #
+# ( cd /working/lab_jonathb/alexandT/tgp_paper/wrange_package_data/
+# while read ENCFF ; do
+#   echo $ENCFF
+#   wget https://www.encodeproject.org/files/$ENCFF/@@download/$ENCFF.bed.gz \
+#   -P data/TADs/ENCODE/
+# done < <(cat output/metadata.tsv | awk '$3=="TADs" && $5 ~ "ENCFF" {print $5}')
+# )
+for file in $(ls $data_dir/ENCODE/*bed.gz) ; do
+  accession=$(basename ${file%.bed.gz}) 
+  celltype=$(cat output/metadata.tsv | grep $accession | cut -f1)
+  zcat $file | cut -f1-3 | sort -k1,1 -k2,2n | bedtools merge > $out_dir/$celltype.bed
+done
+
 echo "Generate RDS ====================================================================="
 ## Save to RDS ##
 module load R/4.0.2
 Rscript code/TADs_2.R
-
 
 
 # ## Meir 2020 ## ! cannot find TADs file
