@@ -1,5 +1,5 @@
 #!/bin/bash
-WKDIR=/working/lab_jonathb/alexandT/tgp_paper/wrangle_package_data/reference_panels/
+WKDIR=/working/lab_jonathb/alexandT/tgp_paper/wrangle_package_data/reference_panels/ ; cd $WKDIR
 data_dir=$WKDIR/data/TADs/ ; mkdir $data_dir
 out_dir=$WKDIR/output/TADs/ ; mkdir $out_dir
 module load bedtools/2.27.1

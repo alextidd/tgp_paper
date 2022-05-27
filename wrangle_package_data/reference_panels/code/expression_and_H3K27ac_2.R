@@ -34,13 +34,10 @@ specificity_score <- function(x){
   }
   return(spec_score)
 }
-bin <- function(x, x_dims){
-  out <- x %>% as_tibble %>% mutate(across(where(is.numeric), ~ ntile(.x, 10)/10)) %>% as.matrix
-  dimnames(out) <- x_dims
-  return(out)
-  }
 
-##### EXPRESSION #####
+##### IMPORT #####
+
+# EXPRESSION #
 # import TSSs
 TSSs <- read.delim(gzfile("data/GENCODE/gencode.v34lift37.basic.tss.bed.gz"),
                    header = F) %>% as_tibble
@@ -73,8 +70,8 @@ expression_raw <- expression_raw %>%
   mutate(across(everything(), ~ log2(.x + 1))) %>%
   as.matrix
 
-##### H3K27ac #####
-# import H3K27ac matrix
+# H3K27ac #
+# import H3K27ac matrix, replace codes with names
 H3K27ac_raw <- read.delim("output/H3K27ac/H3K27ac_input_matrix.tsv") %>%
   mutate(region = paste0(X..chr., ":", X.start., "-", X.end.)) %>%
   select(region, everything(), -X..chr., -X.start., -X.end.) %>% 
@@ -85,32 +82,25 @@ if(any(is.na(acc_to_ct$celltype))){stop(filter(acc_to_ct, is.na(celltype))$acces
 colnames(H3K27ac_raw) <- acc_to_ct$celltype
 
 ##### POST-PROCESSING #####
-# create list, replace codes with names
-process <- list
-process$raw <- list(H3K27ac = H3K27ac_raw, expression = expression_raw) ; dims <- process$raw %>% map(dimnames) 
+# create list
+process <- list()
+process$raw <- list(H3K27ac = H3K27ac_raw, expression = expression_raw) 
+dims <- process$raw %>% map(dimnames) 
 
-# quantile normalise
+# signal = quantile normalise
 process$qn <- process$raw %>% names %>%
   sapply(function(x){
     x_raw <- process$raw[[x]]
     # ppC::normalize.quantiles() has improper NA handling, convert to 0
     x_raw[is.na(x_raw)] <- 0   
-    # qn
-    x_qn <- preprocessCore::normalize.quantiles(x_raw, copy = T) 
-    dimnames(x_qn) <- dims[[x]]
-    return(x_qn)
-}, USE.NAMES = T, simplify = F)
-
-# score
-process$scored <- process$qn %>% names %>%
-  sapply(function(x){
-    x_qn <- process$qn[[x]]
-    # calculate signal scores, bin
-    signal <- x_qn
-    # calculate specificity scores, bin
-    specificity <- x_qn %>% apply(1, specificity_score) %>% t 
+    # get signal (qn)
+    x_signal <- preprocessCore::normalize.quantiles(x_raw, copy = T) 
+    dimnames(x_signal) <- dims[[x]]
+    # get specificity
+    x_specificity <- x_signal %>% apply(1, specificity_score) %>% t 
+    dimnames(x_specificity) <- dims[[x]]
     # return list
-    list(specificity = specificity, signal = signal) %>% 
+    list(signal = x_signal, specificity = x_specificity) %>% 
       map(~.x %>% {
         if(x == "H3K27ac")          dplyr::as_tibble(., rownames = "DHS") 
         else if(x == "expression")  dplyr::as_tibble(., rownames = "ensg")
@@ -120,17 +110,10 @@ process$scored <- process$qn %>% names %>%
 # bin
 process$binned <- process$qn %>% names %>%
   sapply(function(x){
-    x_qn <- process$qn[[x]]
-    # calculate signal scores, bin
-    signal <- x_qn %>% bin(dims[[x]])
-    # calculate specificity scores, bin
-    specificity <- x_qn %>% apply(1, specificity_score) %>% t %>% bin(dims[[x]])
-    # return list
-    list(specificity = specificity, signal = signal) %>% 
-      map(~.x %>% {
-          if(x == "H3K27ac")          dplyr::as_tibble(., rownames = "DHS") 
-          else if(x == "expression")  dplyr::as_tibble(., rownames = "ensg")
-      })
+    process$qn[[x]] %>% names %>%
+      sapply(function(y){
+        process$qn[[x]][[y]] %>% mutate(across(where(is.numeric), ~ ntile(.x, 10)/10)) 
+      }, USE.NAMES = T, simplify = F)
 }, USE.NAMES = T, simplify = F)
 
 # expressed = expression binary
@@ -146,22 +129,32 @@ expressed <- expressed %>%
 # Compute specificity of each site across reference panel of cell types, and rank sites by specicicity.
 # Intersect SNPs with DHS sites and compute the mean rank of the intersected DHS.
 # Assuming SNPs overlap sites randomly, compute significance of mean rank of sites where SNPs overlap based on deivation from uniform distribution.
-H3K27ac_specificity <- process$scored$H3K27ac$specificity
-H3K27ac_specificity_ranked <- H3K27ac_specificity %>%
-  as_tibble(rownames = "DHS") %>%
+H3K27ac_specificity_ranked <- process$qn$H3K27ac$specificity %>%
   mutate(across(where(is.numeric), rank))
 
-##### SAVE ####
-expression <- binned$expression 
-write.table(raw$expression,            "output/expression/expression_raw.tsv", sep = "\t", quote = F)
-write.table(qn$expression$signal,      "output/expression/expression_signal.tsv", sep = "\t", quote = F)
-write.table(qn$expression$specificity, "output/expression/expression_specificity.tsv", sep = "\t", quote = F)
-saveRDS(expression,                    "output/expression/expression.rds")
-saveRDS(expressed,                     "output/expression/expressed.rds")
-
-H3K27ac <- binned$H3K27ac 
-write.table(raw$H3K27ac,            "output/H3K27ac/H3K27ac_raw.tsv", sep = "\t", quote = F)
-write.table(qn$H3K27ac$signal,      "output/H3K27ac/H3K27ac_signal.tsv", sep = "\t", quote = F)
-write.table(qn$H3K27ac$specificity, "output/H3K27ac/H3K27ac_specificity.tsv", sep = "\t", quote = F)
+##### SAVE #####
+# intermediate files
+process %>% names %>%
+  sapply(function(x){ print(x)
+    process[[x]] %>% names %>%
+      sapply(function(y){ print(y)
+        if(!is.list(process[[x]][[y]])){
+          write.table(process[[x]][[y]],
+                      paste0("output/", y, "/", y, "_", x, ".tsv"), sep = "\t", quote = F)
+        } else {
+          process[[x]][[y]] %>% names %>%
+            sapply(function(z){ print(z)
+                write.table(process[[x]][[y]][[z]],
+                            paste0("output/", y, "/", y, "_", z, "_", x, ".tsv"), sep = "\t", quote = F)
+            })
+        }
+      })
+  })
+# objects
+H3K27ac <- process$binned$H3K27ac
+expression <- process$binned$expression
+saveRDS(expression,                 "output/expression/expression.rds")
+saveRDS(expressed,                  "output/expression/expressed.rds")
 saveRDS(H3K27ac,                    "output/H3K27ac/H3K27ac.rds")
 saveRDS(H3K27ac_specificity_ranked, "output/H3K27ac/H3K27ac_specificity_rank.rds")
+
