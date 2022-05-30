@@ -1,4 +1,5 @@
 #!/bin/bash
+# job submission: # ( cd /working/lab_jonathb/alexandT/tgp_paper/wrangle_package_data/reference_panels/ ; qsub -l ncpus=20,mem=50G,walltime=6:00:00 -e log/ -o log/ code/HiChIP_1.sh )
 # Reformat all HiChIP data to BEDPE with normalised scores
 # chrA | startA | endA | chrB | startB | endB | normalised_score
 # File names: study_sample_assay.bedpe

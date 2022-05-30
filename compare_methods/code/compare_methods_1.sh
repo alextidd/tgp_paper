@@ -1,6 +1,6 @@
 #!/bin/bash
 # trait  info passed from run/qsub_run.sh 
-# for testing: # trait=BC;variants=BC_cS2GxMichailidou2017_assoc;variants_file=$traits_dir/output/$variants/variants.bed;known_genes_file=$traits_dir/output/$variants/known_genes.txt
+# for testing: # trait=BC;variants=BC_Michailidou2017_FM;variants_file=$traits_dir/output/$variants/variants.bed;known_genes_file=$traits_dir/output/$variants/known_genes.txt
 
 module load bedtools/2.27.1
 module load R/4.0.2
