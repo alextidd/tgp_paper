@@ -1,0 +1,35 @@
+Header abbreviations:
+
+QRSID = Query SNP rsID
+RSID = Proxy SNP rsID
+RSALIAS = Proxy SNP alias rsID(s)
+CHR = Chromosome
+POS1 = Sentinel SNP Position
+POS2 = Proxy SNP Position
+DIST = Distance
+R2 = LD r^2
+D = LD D
+DPRIME = LD D'
+MAJOR = Proxy Allele A
+MINOR = Proxy Allele B
+MAF = Allele B Frequency
+CMMB = Recombination Rate (CM/Mb)
+CM = Genetic distance (CM)
+COMPEFFECTS = Compressed functional annotation of Proxy SNP
+TRAIT = Associated with trait (yes/no)
+CISEQTL = Associated with eQTL in cis (yes/no)
+TRANSEQTL = Associated with eQTL in trans (yes/no)
+GENES = Genes hit or close-by (distance 5KB max)
+REGGENES = Potentially regulated genes (linked via promoter or enhancer)
+EQTLGENES = Genes linkes via eQTL-associations
+
+
+Information about this job:
+
+Job ID: 165154082615164
+Genome assembly: grch37
+Reference set: 1kgpp3v5
+Population: eur
+Annotation release: ensembl87
+Input type: snps
+SNPs not in Reference Set or Population: rs56391074 rs34579442 rs59308963 rs11452686 rs141536087 rs547171081 rs2277283 rs11290954 rs5799921 rs112293876 rs201158093 rs533722308 rs11480453 rs138004030b rs7127900 rs75823044 rs78554043 rs2238776 
