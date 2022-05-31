@@ -1,6 +1,6 @@
 wkdir <- "/working/lab_jonathb/alexandT/tgp_paper/wrangle_package_data/reference_panels/" ; setwd(wkdir) 
 library(idr2d)
-devtools::load_all("/working/lab_jonathb/alexandT/tgp/")
+devtools::load_all("/working/lab_jonathb/alexandT/EG2/")
 HiChIP_dir <- "output/HiChIP/"
 replicates_dir <- paste0(HiChIP_dir, "replicates/")
 byChr_dir <- paste0(HiChIP_dir, "by_chr/")
@@ -148,5 +148,5 @@ for(ct in HiChIP_metadata$celltype){
 }
 
 # save
-saveRDS(HiChIP, file = "output/HiChIP/HiChIP.rds")
+saveRDS(HiChIP, file = "output/HiChIP.rds")
 

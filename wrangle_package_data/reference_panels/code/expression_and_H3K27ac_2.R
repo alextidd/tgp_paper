@@ -153,8 +153,8 @@ process %>% names %>%
 # objects
 H3K27ac <- process$binned$H3K27ac
 expression <- process$binned$expression
-saveRDS(expression,                 "output/expression/expression.rds")
-saveRDS(expressed,                  "output/expression/expressed.rds")
-saveRDS(H3K27ac,                    "output/H3K27ac/H3K27ac.rds")
-saveRDS(H3K27ac_specificity_ranked, "output/H3K27ac/H3K27ac_specificity_rank.rds")
+saveRDS(expression,                 "output/expression.rds")
+saveRDS(expressed,                  "output/expressed.rds")
+saveRDS(H3K27ac,                    "output/H3K27ac.rds")
+saveRDS(H3K27ac_specificity_ranked, "output/H3K27ac_specificity_rank.rds")
 
