@@ -7,7 +7,7 @@ module load ucsctools/20160223
 
 echo "Trench ====================================================================="
 mkdir $data_dir/Trench/
-# manually coppied from https://docs.google.com/spreadsheets/d/1LAdGdI5F2ZWYWD-GPLV3fNd3RxUXdokJ7TADrQngGNA/edit?usp=sharing
+# manually copied from https://docs.google.com/spreadsheets/d/1LAdGdI5F2ZWYWD-GPLV3fNd3RxUXdokJ7TADrQngGNA/edit?usp=sharing
 cat $data_dir/Trench/T47D.TADs.nonTADS.bed |
 cut -f1-3 \
 > $out_dir/BRST.T47D.CNCR.bed

@@ -125,6 +125,7 @@ done
 
 echo "Bhattacharyya2019 ====================================================================="
 mkdir $data_dir/Bhattacharyya2019/
+
 # WashU epigenome browser sessions: (http://epigenomegateway.wustl.edu/browser/)
 # GM12878 H3K27ac loop callsSession ID: b491c3d0-65f7-11e9-b334-5ff263937318
 # K562 H3K27ac loop callsSession ID: 019e06b0-65f4-11e9-921c-577d3df57445
