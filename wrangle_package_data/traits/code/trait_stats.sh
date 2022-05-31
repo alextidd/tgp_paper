@@ -4,11 +4,11 @@ base_dir=/working/lab_jonathb/alexandT/
 (while IFS=$'\t' read -r trait variants variants_file known_genes_file PMID ; do
   echo $trait $variants 
   cat $variants_file |
-    bedtools slop -i - -g $base_dir/tgp_paper/wrangle_package_data/reference_panels/data/hg/hg19.genome -b 2000000 |
+    bedtools slop -i - -g $base_dir/tgp_paper/wrangle_package_data/sysdata/data/hg/hg19.genome -b 2000000 |
     bedtools intersect \
       -a - \
       -b  <( join -o1.1,1.2,1.3,1.4,1.5 -1 5 -2 1 -t$'\t' \
-              <(zcat $base_dir/tgp_paper/wrangle_package_data/reference_panels/output/GENCODE/proteincoding.gencode.v34lift37.basic.tss.bed.gz | 
+              <(zcat $base_dir/tgp_paper/wrangle_package_data/sysdata/output/GENCODE/proteincoding.gencode.v34lift37.basic.tss.bed.gz | 
                 sort -k5,5) \
               <(cat $known_genes_file | sort -k1,1) |
               sort -k1,1 -k2,2n ) \

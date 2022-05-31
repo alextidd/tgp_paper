@@ -48,4 +48,9 @@ grep protein_coding | cut -f3 | sort -k1,1 -u \
   # save
   gzip > $out_dir/filter.gencode.v34lift37.basic.${ann}.bed.gz
   
+  # save proteincoding  
+  zcat $out_dir/filter.gencode.v34lift37.basic.${ann}.bed.gz |
+  grep -Ff $pcENSGs |
+  gzip > $out_dir/proteincoding.gencode.v34lift37.basic.${ann}.bed.gz
+  
 done)
